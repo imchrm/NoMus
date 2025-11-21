@@ -1,0 +1,27 @@
+[project]
+name = "nomus"
+version = "0.1.0"
+description = "Project for providing services to the population."
+authors = [{ name = "Dimitrii Chrm", email = "im.chrm@gmail.com" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.poetry]
+packages = [{ include = "nomus", from = "src" }]
+
+[tool.poetry.dependencies]
+#python = "^3.11"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project.scripts]
+# запуск: poetry run python -m nomus.main
+nomus = "nomus.main:main"
+
+[tool.poetry.scripts]
+# запуск как скрипт (не рекомендуется): poetry run start-bot
+start-bot = "nomus.main:main"
