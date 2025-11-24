@@ -16,12 +16,39 @@ NoMus/
 └── ...
 ```
 
-## Installation
-
-This project uses [Poetry](https://python-poetry.org/) for dependency management.
+## Clone
 
 ```bash
+git clone https://github.com/imchrm/NoMus.git
+cd NoMus
+```
+
+## Install Poetry
+
+Official installation [guide](https://python-poetry.org/docs/#installation).
+
+## Setup Dependencies of Project
+
+1. Make sure you're inside your "NoMus" project.
+2. To install the virtual environment specifically within your project, rather than in a single location for all project environments, run the following command:
+
+```bash
+poetry config virtualenvs.in-project true
+```
+, and then install dependencies:
+```bash
 poetry install
+```
+
+## Activate Enviroment
+
+1. Windows:
+```bash
+.venv\Scripts\activate
+```
+2. Linux/MacOS:
+```bash
+source .venv/bin/activate
 ```
 
 ## Usage
