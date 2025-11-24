@@ -51,6 +51,19 @@ poetry install
 source .venv/bin/activate
 ```
 
+## .env
+
+Create `.env` file in the root directory of the project.
+Add the following variables:
+
+```bash
+DEBUG=True
+API_KEY=your_api_key
+API_SECRET=your_api_secret
+API_PASSWORD=your_api_password
+API_URL=your_api_url
+```
+
 ## Usage
 
 To run the application:

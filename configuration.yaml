@@ -1,6 +1,15 @@
-debug: true
-api_key: ""
-api_secret: ""
-api_password: ""
-api_url: "https://api.binance.com"
+app_name: "NoMus"
+version: "0.0.1"
 
+#TODO: подумать: может быть лучше перенести в отдельный файл?
+#Telegram bot messages
+messages:
+  uz:
+    welcome: "NoMusga xush kelibsiz!"
+    error: "Xatolik yuz berdi."
+  en:
+    welcome: "Welcome to NoMus!"
+    error: "An error occurred."
+  ru:
+    welcome: "Добро пожаловать в NoMus!"
+    error: "Произошла ошибка."
