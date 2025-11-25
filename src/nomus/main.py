@@ -1,25 +1,50 @@
-from pydantic import BaseModel
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage as AiogramMemoryStorage
 
-from nomus.config.settings import Settings 
+from nomus.config.settings import Settings
+from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.infrastructure.services.sms_stub import SmsServiceStub
+from nomus.infrastructure.services.payment_stub import PaymentServiceStub
+from nomus.application.services.auth_service import AuthService
+from nomus.application.services.order_service import OrderService
+from nomus.presentation.bot.middlewares.dependency_injection import (
+    ServiceLayerMiddleware,
+)
+from nomus.presentation.bot.handlers import common, registration, ordering
 
-class Application(BaseModel):
-    settings: Settings
 
-    def start(self) -> None:
-        print(f"App Name: {self.settings.app_name}")
-        print(f"Version: {self.settings.version}")
-        print(f"Debug: {self.settings.debug}")
-        print(f"API Key: {self.settings.api_key}")
-        print(f"API URL: {self.settings.api_url}")
-        if self.settings.messages:
-            print(f"English Welcome: {self.settings.messages.en.welcome}")
-            print(f"Russian Welcome: {self.settings.messages.ru.welcome}")
-            print(f"Uzbek Welcome: {self.settings.messages.uz.welcome}")
-
-def main() -> None:
+async def main():
+    logging.basicConfig(level=logging.INFO)
     settings = Settings()
-    app = Application(settings=settings)
-    app.start()
+
+    # 1. Infrastructure Layer
+    storage = MemoryStorage()
+    sms_stub = SmsServiceStub()
+    payment_stub = PaymentServiceStub()
+
+    # 2. Application Layer
+    auth_service = AuthService(user_repo=storage, sms_service=sms_stub)
+    order_service = OrderService(order_repo=storage, payment_service=payment_stub)
+
+    # 3. Presentation Layer
+    bot = Bot(
+        token=settings.bot_token
+    )  # Assuming API_KEY is the bot token for now based on .env
+    dp = Dispatcher(storage=AiogramMemoryStorage())
+
+    # Middleware
+    dp.update.middleware(ServiceLayerMiddleware(auth_service, order_service))
+
+    # Routers
+    dp.include_router(common.router)
+    dp.include_router(registration.router)
+    dp.include_router(ordering.router)
+
+    print("Starting bot...")
+    await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -1,0 +1,30 @@
+import uuid
+from typing import Dict, Any
+from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.infrastructure.services.payment_stub import PaymentServiceStub
+
+
+class OrderService:
+    def __init__(self, order_repo: MemoryStorage, payment_service: PaymentServiceStub):
+        self.order_repo = order_repo
+        self.payment_service = payment_service
+
+    async def get_tariffs(self) -> Dict[str, int]:
+        return {"Эконом": 10000, "Стандарт": 30000, "Премиум": 50000}
+
+    async def create_order(self, user_phone: str, tariff: str, amount: int) -> bool:
+        # Process payment first
+        payment_success = await self.payment_service.process_payment(amount)
+
+        if payment_success:
+            order_id = str(uuid.uuid4())
+            order_data = {
+                "id": order_id,
+                "user": user_phone,
+                "tariff": tariff,
+                "amount": amount,
+                "status": "paid",
+            }
+            await self.order_repo.create_order(order_id, order_data)
+            return True
+        return False

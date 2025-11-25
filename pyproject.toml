@@ -1,12 +1,12 @@
 [project]
 name = "nomus"
-version = "0.1.0"
+version = "0.2.1"
 description = "Project for providing services to the population."
 authors = [{ name = "Dimitrii Chrm", email = "im.chrm@gmail.com" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["pydantic-settings>=2.0.0", "pyyaml (>=6.0.3,<7.0.0)"]
+dependencies = ["pydantic-settings>=2.0.0", "pyyaml (>=6.0.3,<7.0.0)", "aiogram (>=3.22.0,<4.0.0)"]
 
 [tool.poetry]
 packages = [{ include = "nomus", from = "src" }]

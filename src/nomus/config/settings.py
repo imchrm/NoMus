@@ -22,11 +22,11 @@ class I18nConfig(BaseModel):
 
 class YamlConfigSettingsSource(PydanticBaseSettingsSource):
     def get_field_value(self, field: Any, field_name: str) -> Tuple[Any, str, bool]:
-        encoding = self.config.get("env_file_encoding")
-        file_content_json = yaml.safe_load(
+        encoding: str | None = self.config.get("env_file_encoding")
+        file_content_json:Any = yaml.safe_load(
             Path("configuration.yaml").read_text(encoding)
         )
-        field_value = file_content_json.get(field_name)
+        field_value:Any = file_content_json.get(field_name)
         return field_value, field_name, False
 
     def prepare_field_value(
@@ -52,17 +52,19 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
 
         return d
 
+
 class Settings(BaseSettings):
     # Env settings
     debug: bool = False
+    bot_token: str = ''
     api_key: str = ''
     api_secret: str = ''
     api_password: str = ''
     api_url: str = ''
 
     # Yaml settings
-    app_name: str = "NoMus"
-    version: str = "0.0.1"
+    app_name: str = "NoMus" # TODO удалить 
+    version: str = "0.0.1" # TODO удалить
     messages: I18nConfig | None = None
 
     model_config = SettingsConfigDict(
