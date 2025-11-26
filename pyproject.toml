@@ -25,3 +25,10 @@ nomus = "nomus.main:main"
 [tool.poetry.scripts]
 # запуск как скрипт (не рекомендуется): poetry run start-bot
 start-bot = "nomus.main:main"
+
+[tool.pylint.messages_control]
+# C0303: Trailing whitespace
+disable = """
+    trailing-whitespace,
+    missing-module-docstring
+"""

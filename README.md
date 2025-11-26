@@ -54,6 +54,7 @@ source .venv/bin/activate
 ## .env
 
 Create `.env` file in the root directory of the project.
+`.env` will keep all your secret and sensitive information that should not be published in a public repository. 
 Add the following variables:
 
 ```bash

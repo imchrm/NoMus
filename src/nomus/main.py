@@ -15,8 +15,14 @@ from nomus.presentation.bot.middlewares.dependency_injection import (
 from nomus.presentation.bot.handlers import common, registration, ordering
 
 
+
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+    )
+    log: logging.Logger = logging.getLogger(__name__)
+    
     settings = Settings()
 
     # 1. Infrastructure Layer
@@ -42,7 +48,7 @@ async def main():
     dp.include_router(registration.router)
     dp.include_router(ordering.router)
 
-    print("Starting bot...")
+    log.info("Starting bot...")
     await dp.start_polling(bot)
 
 

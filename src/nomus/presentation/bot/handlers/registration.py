@@ -1,3 +1,4 @@
+from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import (
     Message,
@@ -6,8 +7,11 @@ from aiogram.types import (
     ReplyKeyboardRemove,
 )
 from aiogram.fsm.context import FSMContext
+from nomus.domain.entities.user import User
 from nomus.presentation.bot.states.registration import RegistrationStates
+from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.auth_service import AuthService
+from nomus.application.services.order_service import OrderService
 
 router = Router()
 
@@ -27,7 +31,24 @@ async def start_registration(message: Message, state: FSMContext):
 
 @router.message(RegistrationStates.waiting_for_phone, F.contact)
 async def process_phone(message: Message, state: FSMContext, auth_service: AuthService):
+    
+    # TODO: Check if you are guaranteed to receive a `phone_number` after `request_contact`
+    # 
+    # Telegram API(https://core.telegram.org/bots/api): 
+    # KeyboardButton: 
+    # Field: https://core.telegram.org/bots/api
+    # Type: Boolean
+    # Description: Optional. If True, the user's phone number will be sent as a contact when the button is pressed. Available in private chats only.
+    # if message.contact is None:
+    #     await message.answer("Пожалуйста, отправьте ваш контакт.")
+    #     return
+    
+    # First variant
+    # if message.contact is None:
+    #     assert False, "message.contact should not be None here"
+    assert message.contact is not None # assertion for Pylance, second variant
     phone = message.contact.phone_number
+
     await state.update_data(phone=phone)
 
     # Send verification code
@@ -41,7 +62,20 @@ async def process_phone(message: Message, state: FSMContext, auth_service: AuthS
 
 
 @router.message(RegistrationStates.waiting_for_sms_code)
-async def process_code(message: Message, state: FSMContext, auth_service: AuthService):
+async def process_code(
+    message: Message,
+    state: FSMContext,
+    auth_service: AuthService,
+    order_service: OrderService,
+):
+    if not message.from_user:
+        # We cannot process a message without a user (for example, from a channel)
+        return
+
+    if not message.text:
+        await message.answer("Пожалуйста, отправьте код в виде текстового сообщения.")
+        return
+
     code = message.text
     if not code.isdigit() or len(code) != 4:
         await message.answer("Пожалуйста, введите 4 цифры.")
@@ -51,9 +85,26 @@ async def process_code(message: Message, state: FSMContext, auth_service: AuthSe
     if code == "1234":
         data = await state.get_data()
         phone = data.get("phone")
-        await auth_service.register_user(phone)
-
-        await message.answer("Регистрация успешно завершена!")
-        await state.clear()
+        new_user: User
+        if(phone):
+            new_user = User(
+                id=message.from_user.id,  # We r use telegram_id as temporary ID
+                telegram_id=message.from_user.id,
+                phone_number=phone,
+                registered_at=datetime.now()
+            )
+            await auth_service.register_user(new_user)
+            await message.answer("Регистрация успешно завершена!")
+            
+            # --- Transition to the ordering flow ---
+            tariffs = await order_service.get_tariffs()
+            await state.update_data(tariffs=tariffs)
+            kb = [[KeyboardButton(text=t)] for t in tariffs.keys()]
+            keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+            await message.answer("Теперь вы можете сделать свой первый заказ. Выберите тариф:", reply_markup=keyboard)
+            await state.set_state(OrderStates.selecting_tariff)
+            
+        else:
+            message.answer("Не удалось получить номер телефона. Попробуйте еще раз.")
     else:
         await message.answer("Неверный код. Попробуйте еще раз.")

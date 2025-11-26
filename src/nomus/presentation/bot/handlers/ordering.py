@@ -10,15 +10,31 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from nomus.presentation.bot.states.ordering import OrderStates
+from nomus.presentation.bot.states.registration import RegistrationStates
 from nomus.application.services.order_service import OrderService
+from nomus.application.services.auth_service import AuthService
 
 router = Router()
 
 
 @router.message(F.text == "Сделать заказ")
 async def start_ordering(
-    message: Message, state: FSMContext, order_service: OrderService
+    message: Message,
+    state: FSMContext,
+    order_service: OrderService,
+    auth_service: AuthService,
 ):
+    # We can't process an action without a user (e.g., from a channel)
+    if not message.from_user:
+        return
+
+    # Check if the user is registered
+    if not await auth_service.is_user_registered(message.from_user.id):
+        await message.answer(
+            "Чтобы сделать заказ, вам необходимо сначала зарегистрироваться. Нажмите 'Регистрация' в меню."
+        )
+        return
+
     tariffs = await order_service.get_tariffs()
     # Store tariffs in state for validation
     await state.update_data(tariffs=tariffs)

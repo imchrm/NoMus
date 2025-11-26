@@ -16,6 +16,9 @@ def get_start_kb():
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
+    # TODO: Add logo of service
+    # file = InputFileUnion()
+    # await message.answer_photo(photo=file)
     await message.answer(
         "Добро пожаловать в NoMus! Выберите действие:", reply_markup=get_start_kb()
     )

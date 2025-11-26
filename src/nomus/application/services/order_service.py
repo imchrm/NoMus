@@ -5,20 +5,21 @@ from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 
 
 class OrderService:
+    
     def __init__(self, order_repo: MemoryStorage, payment_service: PaymentServiceStub):
-        self.order_repo = order_repo
-        self.payment_service = payment_service
+        self.order_repo: MemoryStorage = order_repo
+        self.payment_service: PaymentServiceStub = payment_service
 
     async def get_tariffs(self) -> Dict[str, int]:
         return {"Эконом": 10000, "Стандарт": 30000, "Премиум": 50000}
 
     async def create_order(self, user_phone: str, tariff: str, amount: int) -> bool:
         # Process payment first
-        payment_success = await self.payment_service.process_payment(amount)
+        payment_success: bool = await self.payment_service.process_payment(amount)
 
         if payment_success:
             order_id = str(uuid.uuid4())
-            order_data = {
+            order_data: dict[str, Any] = {
                 "id": order_id,
                 "user": user_phone,
                 "tariff": tariff,
