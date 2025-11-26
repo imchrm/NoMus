@@ -58,6 +58,9 @@ Add the following variables:
 
 ```bash
 DEBUG=True
+
+BOT_TOKEN=your_token_bot #Give it from BotFather
+
 API_KEY=your_api_key
 API_SECRET=your_api_secret
 API_PASSWORD=your_api_password
