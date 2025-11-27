@@ -74,6 +74,10 @@ async def process_tariff(message: Message, state: FSMContext):
 async def process_payment(
     callback: CallbackQuery, state: FSMContext, order_service: OrderService
 ):
+    # Assert that the message is an accessible `Message` object, not `InaccessibleMessage`.
+    # This satisfies Pylance and ensures the .edit_text() method exists.
+    assert isinstance(callback.message, Message)
+
     await callback.message.edit_text("Обработка платежа...")
 
     data = await state.get_data()

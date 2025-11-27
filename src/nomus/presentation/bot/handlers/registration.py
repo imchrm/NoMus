@@ -86,7 +86,8 @@ async def process_code(
         data = await state.get_data()
         phone = data.get("phone")
         new_user: User
-        if(phone):
+        
+        if phone:
             new_user = User(
                 id=message.from_user.id,  # We r use telegram_id as temporary ID
                 telegram_id=message.from_user.id,
