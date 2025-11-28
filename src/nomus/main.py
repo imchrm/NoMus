@@ -9,16 +9,14 @@ from nomus.infrastructure.services.sms_stub import SmsServiceStub
 from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
-from nomus.presentation.bot.middlewares.dependency_injection import (
-    ServiceLayerMiddleware,
-)
-from nomus.presentation.bot.handlers import common, registration, ordering
+from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
+from nomus.presentation.bot.handlers import common, registration, ordering, language
 
 
 
 async def main():
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
     )
     log: logging.Logger = logging.getLogger(__name__)
@@ -40,16 +38,23 @@ async def main():
     )  # Assuming API_KEY is the bot token for now based on .env
     dp = Dispatcher(storage=AiogramMemoryStorage())
 
-    # Middleware
-    dp.update.middleware(ServiceLayerMiddleware(auth_service, order_service))
+    # Подключаем middleware для локализации, передавая ему storage
+    dp.update.middleware(L10nMiddleware(settings=settings, storage=storage))
 
     # Routers
     dp.include_router(common.router)
+    dp.include_router(language.router)
     dp.include_router(registration.router)
     dp.include_router(ordering.router)
 
     log.info("Starting bot...")
-    await dp.start_polling(bot)
+    # Используем встроенный DI для сервисов и хранилища
+    await dp.start_polling(
+        bot,
+        auth_service=auth_service,
+        order_service=order_service,
+        storage=storage,
+    )
 
 
 if __name__ == "__main__":

@@ -1,23 +1,35 @@
-import yaml
 from pathlib import Path
 from typing import Any, Dict, Type, Tuple
+import yaml
 from pydantic import BaseModel
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
     PydanticBaseSettingsSource,
 )
+# from .default_messages import DEFAULT_MESSAGES
 
 
 class Messages(BaseModel):
-    welcome: str
-    error: str
+    # Задаем значения по умолчанию. Теперь все поля опциональны.
+    welcome: str = ""
+    error: str = ""
+    start_ordering_button: str = ""
+    registration_button: str = ""
+    cancel_button: str = ""
+    order_registration_prompt: str = ""
+
 
 
 class I18nConfig(BaseModel):
-    uz: Messages
-    en: Messages
-    ru: Messages
+    uz: Messages=Messages()
+    en: Messages=Messages()
+    ru: Messages=Messages()
+
+    def __getitem__(self, key: str) -> Messages:
+        return getattr(self, key)
+
+
 
 
 class YamlConfigSettingsSource(PydanticBaseSettingsSource):
@@ -65,7 +77,7 @@ class Settings(BaseSettings):
     # Yaml settings
     app_name: str = "NoMus" # TODO удалить 
     version: str = "0.0.1" # TODO удалить
-    messages: I18nConfig | None = None
+    messages: I18nConfig = I18nConfig()
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

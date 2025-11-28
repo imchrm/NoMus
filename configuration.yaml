@@ -1,15 +1,29 @@
 app_name: "NoMus"
-version: "0.0.1"
+version: "0.2.1"
 
 #TODO: подумать: может быть лучше перенести в отдельный файл?
-#Telegram bot messages
+# TODO: i18n? 
+#Telegram bot lexicon
 messages:
   uz:
-    welcome: "NoMusga xush kelibsiz!"
+    welcome: "NoMusga xush kelibsiz! Iltimos, harakatni tanlang:"
     error: "Xatolik yuz berdi."
+    start_ordering_button: "Buyurtma berish"
+    registration_button: "Ro'yxatdan o'tish"
+    cancel_button: "Bekor qilish"
+    order_registration_prompt: "Buyurtma berish uchun avval ro'yxatdan o'tishingiz kerak. Iltimos, menyuda \"Ro'yxatdan o'tish\" tugmasini bosing."
   en:
-    welcome: "Welcome to NoMus!"
+    welcome: "Welcome to NoMus! Please choose an action:"
     error: "An error occurred."
+    start_ordering_button: "Make an order"
+    registration_button: "Registration"
+    cancel_button: "Cancel"
+    order_registration_prompt: "To make an order, you need to register first. Please press 'Registration' in the menu."
   ru:
-    welcome: "Добро пожаловать в NoMus!"
+    welcome: "Добро пожаловать в NoMus! Выберите действие:"
     error: "Произошла ошибка."
+    start_ordering_button: "Сделать заказ"
+    registration_button: "Регистрация"
+    cancel_button: "Отменить"
+    order_registration_prompt: "Чтобы сделать заказ, вам необходимо сначала зарегистрироваться. Нажмите 'Регистрация' в меню."
+

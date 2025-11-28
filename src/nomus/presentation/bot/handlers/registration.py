@@ -12,11 +12,12 @@ from nomus.presentation.bot.states.registration import RegistrationStates
 from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
+from nomus.presentation.bot.filters.lexicon_filter import LexiconFilter
 
 router = Router()
 
 
-@router.message(F.text == "Регистрация")
+@router.message(LexiconFilter('registration_button'))
 async def start_registration(message: Message, state: FSMContext):
     kb = [[KeyboardButton(text="Отправить контакт", request_contact=True)]]
     keyboard = ReplyKeyboardMarkup(
@@ -85,16 +86,20 @@ async def process_code(
     if code == "1234":
         data = await state.get_data()
         phone = data.get("phone")
-        new_user: User
         
         if phone:
-            new_user = User(
-                id=message.from_user.id,  # We r use telegram_id as temporary ID
+            user_data = User(
+                id=message.from_user.id,
                 telegram_id=message.from_user.id,
                 phone_number=phone,
                 registered_at=datetime.now()
-            )
-            await auth_service.register_user(new_user)
+            ).model_dump() # Преобразуем Pydantic модель в словарь для сохранения
+            
+            # Теперь мы не создаем нового пользователя, а обновляем существующего,
+            # добавляя номер телефона и другие данные.
+            # Метод register_user в auth_service должен использовать save_or_update_user.
+            await auth_service.user_repo.save_or_update_user(message.from_user.id, user_data)
+            
             await message.answer("Регистрация успешно завершена!")
             
             # --- Transition to the ordering flow ---

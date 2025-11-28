@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 from datetime import datetime
 
+from pydantic import BaseModel
 
-@dataclass
-class User:
+
+class User(BaseModel):
     id: int
     telegram_id: int
     phone_number: str
     registered_at: datetime
-    

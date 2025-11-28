@@ -1,5 +1,5 @@
 # src/nomus/presentation/bot/lexicon/en.py
-LEXICON_EN: dict[str, str] = {
+LEXICON_UZ: dict[str, str] = {
     'start_ordering_button': 'Buyurtma bering',
     'registration_button': "Ro'yxatdan o'tish",
     'cancel_button': 'Bekor qilish',

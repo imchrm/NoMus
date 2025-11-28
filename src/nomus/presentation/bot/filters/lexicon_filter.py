@@ -1,7 +1,7 @@
 # src/nomus/presentation/bot/filters/lexicon_filter.py
 from aiogram.filters import BaseFilter
 from aiogram.types import Message
-from ..lexicon.lexicon import LEXICON
+from nomus.presentation.bot.lexicon.lexicon import LEXICON
 
 class LexiconFilter(BaseFilter):
     def __init__(self, text_key: str):
@@ -13,7 +13,7 @@ class LexiconFilter(BaseFilter):
         
         # We get all possible translations for current `text_key`
         possible_translations = [
-            lang_dict.get(self.text_key) for lang_dict in LEXICON.values()
+            lang_dict.get(self.text_key) for lang_dict in LEXICON.values() if lang_dict.get(self.text_key) is not None
         ]
         
         # We check whether the message text matches one of the translations
