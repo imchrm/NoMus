@@ -3,8 +3,10 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from nomus.infrastructure.database.memory_storage import MemoryStorage
 from nomus.presentation.bot.filters.lexicon_filter import LexiconFilter
 from nomus.config.settings import Messages
+from nomus.presentation.bot.handlers.language import _send_language_selection
 
 router = Router()
 
@@ -18,15 +20,22 @@ def get_start_kb(lexicon: Messages) -> ReplyKeyboardMarkup:
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext, lexicon: Messages):
+async def cmd_start(
+    message: Message, state: FSMContext, lexicon: Messages, storage: MemoryStorage
+):
     await state.clear()
-    # TODO: Add logo of service
-    # file = InputFileUnion()
-    # await message.answer_photo(photo=file)
-    await message.answer(
-        lexicon.welcome,
-        reply_markup=get_start_kb(lexicon)
-    )
+    if message.from_user:
+        await storage.save_or_update_user(
+            telegram_id=message.from_user.id,
+            data={
+                "username": message.from_user.username,
+                "full_name": message.from_user.full_name,
+                "language_code": "ru" # Устанавливаем язык по умолчанию
+            },
+        )
+    
+    await _send_language_selection(message)
+
 
 @router.message(Command("cancel"))
 @router.message(LexiconFilter('cancel_button'))

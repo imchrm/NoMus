@@ -42,10 +42,11 @@ async def main():
     dp.update.middleware(L10nMiddleware(settings=settings, storage=storage))
 
     # Routers
+    # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
     dp.include_router(common.router)
-    dp.include_router(language.router)
     dp.include_router(registration.router)
     dp.include_router(ordering.router)
+    dp.include_router(language.router) # Этот роутер должен быть последним из тех, что обрабатывают callback'и
 
     log.info("Starting bot...")
     # Используем встроенный DI для сервисов и хранилища
@@ -54,6 +55,7 @@ async def main():
         auth_service=auth_service,
         order_service=order_service,
         storage=storage,
+        settings=settings,
     )
 
 

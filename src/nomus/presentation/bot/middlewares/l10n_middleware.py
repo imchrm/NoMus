@@ -34,7 +34,7 @@ class L10nMiddleware(BaseMiddleware):
         # под ключом 'lexicon'.
         # Это и есть ключевой момент: мы один раз используем строковый ключ,
         # чтобы получить нужный объект.
-        lexicon_obj: Messages = self.settings.messages[lang_code]
+        lexicon_obj: Messages = getattr(self.settings.messages, lang_code)
         data["lexicon"] = lexicon_obj
         
         return await handler(event, data)

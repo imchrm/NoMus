@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -20,23 +20,38 @@ class MemoryStorage:
             self.users[telegram_id] = data
             log.info("User %s created with data: %s", telegram_id, data)
 
-    async def get_user_by_phone(self, phone: str) -> Optional[Dict[str, Any]]:
+    async def get_user_by_phone(self, phone: str) -> Dict[str, Any] | None:
         """Finds a user by their phone number. Less efficient, used for checking duplicates."""
         for user_data in self.users.values():
             if user_data.get("phone_number") == phone:
+                log.debug("Getting user by phone: %s, his data is:\n %s", phone, user_data)
                 return user_data
         return None
 
-    async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[Dict[str, Any]]:
+    async def get_user_by_telegram_id(self, telegram_id: int) -> Dict[str, Any] | None:
         """Finds a user by their telegram_id directly."""
-        return self.users.get(telegram_id)
+        user_data = self.users.get(telegram_id)
+        log.debug("Get user data: %s", user_data)
+        return user_data
 
-    async def update_user_language(self, telegram_id: int, lang_code: str) -> bool:
+    async def update_user_language(self, telegram_id: int, language_code: str) -> bool:
         """Updates the language for a user identified by telegram_id."""
         # Просто создаем или обновляем запись пользователя с новым языком.
-        await self.save_or_update_user(telegram_id, {"language_code": lang_code})
+        log.debug("Updating language for user %s to %s", telegram_id, language_code)
+        await self.save_or_update_user(telegram_id, {"language_code": language_code})
         return True
 
     async def create_order(self, order_id: str, data: Dict[str, Any]) -> None:
         self.orders[order_id] = data
         log.info("[DB] Order %s created: %s", order_id, data)
+    
+    async def get_user_language(self, telegram_id: int) -> str | None:
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if not user:
+            return None
+        language_code = user.get("language_code") # Получаем значение
+        # Проверяем, что это непустая строка
+        if language_code and isinstance(language_code, str):
+            return language_code
+        raise ValueError(f"Invalid language_code: {language_code}")
+        

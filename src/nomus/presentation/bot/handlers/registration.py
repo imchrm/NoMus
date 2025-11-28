@@ -8,30 +8,40 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from nomus.domain.entities.user import User
+from nomus.infrastructure.database.memory_storage import MemoryStorage
 from nomus.presentation.bot.states.registration import RegistrationStates
-from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
+from nomus.presentation.bot.handlers.ordering import _start_tariff_selection
 from nomus.presentation.bot.filters.lexicon_filter import LexiconFilter
+from nomus.config.settings import Messages
 
 router = Router()
 
 
 @router.message(LexiconFilter('registration_button'))
-async def start_registration(message: Message, state: FSMContext):
-    kb = [[KeyboardButton(text="Отправить контакт", request_contact=True)]]
+async def start_registration(message: Message, state: FSMContext, lexicon: Messages):
+    kb = [[KeyboardButton(text=lexicon.send_contact_button, request_contact=True)]]
     keyboard = ReplyKeyboardMarkup(
         keyboard=kb, resize_keyboard=True, one_time_keyboard=True
     )
 
+    prompt_text = lexicon.send_contact_prompt
+    if prompt_text is None:
+        #TODO: создать вспомогательную функцию, например, get_lexicon_text(lexicon, key), 
+        # которая будет инкапсулировать эту проверку и использоваться во всех хендлерах
+        # для большей чистоты кода.
+        # It's error of configuration of lexicon. `send_contact_prompt` is undefined for current language.
+        raise ValueError("Missing translation for 'send_contact_prompt'. Check your lexicon configuration (configuration.yaml: messages).")
+
     await message.answer(
-        "Пожалуйста, отправьте ваш контакт для регистрации.", reply_markup=keyboard
+        prompt_text, reply_markup=keyboard
     )
     await state.set_state(RegistrationStates.waiting_for_phone)
 
 
 @router.message(RegistrationStates.waiting_for_phone, F.contact)
-async def process_phone(message: Message, state: FSMContext, auth_service: AuthService):
+async def process_phone(message: Message, state: FSMContext, auth_service: AuthService, lexicon: Messages):
     
     # TODO: Check if you are guaranteed to receive a `phone_number` after `request_contact`
     # 
@@ -56,7 +66,7 @@ async def process_phone(message: Message, state: FSMContext, auth_service: AuthS
     await auth_service.send_verification_code(phone)
 
     await message.answer(
-        "Код подтверждения отправлен (см. консоль). Введите 4 цифры:",
+        lexicon.code_sent_prompt,
         reply_markup=ReplyKeyboardRemove(),
     )
     await state.set_state(RegistrationStates.waiting_for_sms_code)
@@ -68,18 +78,20 @@ async def process_code(
     state: FSMContext,
     auth_service: AuthService,
     order_service: OrderService,
+    storage: MemoryStorage,
+    lexicon: Messages,
 ):
     if not message.from_user:
         # We cannot process a message without a user (for example, from a channel)
         return
 
     if not message.text:
-        await message.answer("Пожалуйста, отправьте код в виде текстового сообщения.")
+        await message.answer(lexicon.send_code_as_text_prompt)
         return
 
     code = message.text
     if not code.isdigit() or len(code) != 4:
-        await message.answer("Пожалуйста, введите 4 цифры.")
+        await message.answer(lexicon.enter_4_digits_prompt)
         return
 
     # Verify code (simplified for PoC: always check against '1234')
@@ -100,17 +112,24 @@ async def process_code(
             # Метод register_user в auth_service должен использовать save_or_update_user.
             await auth_service.user_repo.save_or_update_user(message.from_user.id, user_data)
             
-            await message.answer("Регистрация успешно завершена!")
+            await message.answer(lexicon.registration_successful)
             
-            # --- Transition to the ordering flow ---
-            tariffs = await order_service.get_tariffs()
-            await state.update_data(tariffs=tariffs)
-            kb = [[KeyboardButton(text=t)] for t in tariffs.keys()]
-            keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-            await message.answer("Теперь вы можете сделать свой первый заказ. Выберите тариф:", reply_markup=keyboard)
-            await state.set_state(OrderStates.selecting_tariff)
+            # Get user language from storage
+            lang_code = await storage.get_user_language(message.from_user.id)
+            if lang_code is None:
+                raise ValueError("User language not found in storage.")
+
+            
+            # --- Transition to the ordering flow ---            
+            # We don't know the user's language yet, so we use the default.
+            #TODO: Возможно нужно меньше образаться к внешним ресурсам для получения пользовательского языка
+            # тогда получение языка можно сделать синхронным
+            lang_code = await storage.get_user_language(message.from_user.id)
+            # TODO: Проверить утверждение, пересмотреть логику!
+            assert lang_code is not None # утверждаем, что язык точно не None
+            await _start_tariff_selection(message, state, order_service, lexicon, lang_code)
             
         else:
-            message.answer("Не удалось получить номер телефона. Попробуйте еще раз.")
+            await message.answer(lexicon.phone_number_error)
     else:
-        await message.answer("Неверный код. Попробуйте еще раз.")
+        await message.answer(lexicon.invalid_code_error)

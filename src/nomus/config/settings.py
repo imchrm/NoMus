@@ -11,13 +11,28 @@ from pydantic_settings import (
 
 
 class Messages(BaseModel):
-    # Задаем значения по умолчанию. Теперь все поля опциональны.
+    # The Values of fields below do inflate from configuration.yaml file
     welcome: str = ""
     error: str = ""
     start_ordering_button: str = ""
     registration_button: str = ""
     cancel_button: str = ""
     order_registration_prompt: str = ""
+    send_contact_button: str = ""
+    send_contact_prompt: str = ""
+    code_sent_prompt: str = "" #TODO Проверить это используется?
+    send_code_as_text_prompt: str = ""
+    invalid_code_error: str = ""
+    enter_4_digits_prompt: str = ""
+    registration_successful: str = ""
+    select_tariff_prompt: str = ""
+    phone_number_error: str = "" #TODO Проверить это используется?
+    choose_tariff_from_list_prompt: str = ""
+    payment_button: str = ""
+    payment_prompt: str = ""
+    payment_processing: str = ""
+    order_success: str = ""
+    payment_error: str = ""
 
 
 
@@ -25,9 +40,6 @@ class I18nConfig(BaseModel):
     uz: Messages=Messages()
     en: Messages=Messages()
     ru: Messages=Messages()
-
-    def __getitem__(self, key: str) -> Messages:
-        return getattr(self, key)
 
 
 
@@ -75,8 +87,8 @@ class Settings(BaseSettings):
     api_url: str = ''
 
     # Yaml settings
-    app_name: str = "NoMus" # TODO удалить 
-    version: str = "0.0.1" # TODO удалить
+    # app_name: str = "NoMus" # TODO удалить 
+    # version: str = "0.0.1" # TODO удалить
     messages: I18nConfig = I18nConfig()
 
     model_config = SettingsConfigDict(

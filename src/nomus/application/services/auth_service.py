@@ -15,12 +15,13 @@ class AuthService:
         await self.sms_service.send_sms(phone, code)
         return code
 
-    async def register_user(self, user: User) -> None:
-        # Simple registration logic
-        # The repository should ideally also work with the User entity
-        # For now, we can adapt it here, but the repo should be updated later.
-        user_data = {"id": user.id, "telegram_id": user.telegram_id, "phone_number": user.phone_number, "registered_at": user.registered_at}
-        await self.user_repo.save_user(user.phone_number, user_data)
-
     async def is_user_registered(self, telegram_id: int) -> bool:
-        return await self.user_repo.get_user_by_telegram_id(telegram_id) is not None
+        """
+        Checks if a user is registered.
+        A user is considered registered if their record exists and contains a phone number.
+        """
+        user_data = await self.user_repo.get_user_by_telegram_id(telegram_id)
+        if not user_data:
+            return False
+        # The presence of a phone number indicates that the user has completed registration.
+        return "phone_number" in user_data and user_data.get("phone_number") is not None
