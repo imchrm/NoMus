@@ -13,68 +13,76 @@ from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
 from nomus.presentation.bot.handlers import common, registration, ordering, language
 
 
-async def on_startup(bot: Bot, log: logging.Logger):
-    log.info("Starting bot...")
+class BotApplication:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.log = self._setup_logging()
 
+        # 1. Infrastructure Layer
+        self.storage = MemoryStorage()
+        self.sms_stub = SmsServiceStub()
+        self.payment_stub = PaymentServiceStub()
 
-async def on_shutdown(bot: Bot, log: logging.Logger):
-    log.info("Bot stopped")
-    await bot.session.close()
+        # 2. Application Layer
+        self.auth_service = AuthService(user_repo=self.storage, sms_service=self.sms_stub)
+        self.order_service = OrderService(order_repo=self.storage, payment_service=self.payment_stub)
 
+        # 3. Presentation Layer
+        self.bot = Bot(token=self.settings.bot_token)
+        self.dp = Dispatcher(storage=AiogramMemoryStorage())
+
+        self._setup_middlewares()
+        self._register_routers()
+        self._register_lifecycle_hooks()
+
+    def _setup_logging(self) -> logging.Logger:
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+        )
+        return logging.getLogger(__name__)
+
+    def _setup_middlewares(self):
+        # Подключаем middleware для локализации, передавая ему storage
+        self.dp.update.middleware(L10nMiddleware(settings=self.settings, storage=self.storage))
+
+    def _register_routers(self):
+        # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
+        self.dp.include_router(common.router)
+        self.dp.include_router(registration.router)
+        self.dp.include_router(ordering.router)
+        self.dp.include_router(language.router)  # Этот роутер должен быть последним
+
+    def _register_lifecycle_hooks(self):
+        self.dp.startup.register(self.on_startup)
+        self.dp.shutdown.register(self.on_shutdown)
+
+    async def on_startup(self, bot: Bot):
+        self.log.info("Starting bot...")
+
+    async def on_shutdown(self, bot: Bot):
+        self.log.info("Bot stopped")
+        await bot.session.close()
+
+    async def run(self):
+        try:
+            await self.dp.start_polling(
+                self.bot,
+                auth_service=self.auth_service,
+                order_service=self.order_service,
+                storage=self.storage,
+                settings=self.settings,
+                log=self.log,
+            )
+        except asyncio.CancelledError:
+            # No need to do anything.
+            pass
 
 
 async def main():
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
-    )
-    log: logging.Logger = logging.getLogger(__name__)
-    
     settings = Settings()
-
-    # 1. Infrastructure Layer
-    storage = MemoryStorage()
-    sms_stub = SmsServiceStub()
-    payment_stub = PaymentServiceStub()
-
-    # 2. Application Layer
-    auth_service = AuthService(user_repo=storage, sms_service=sms_stub)
-    order_service = OrderService(order_repo=storage, payment_service=payment_stub)
-
-    # 3. Presentation Layer
-    bot = Bot(
-        token=settings.bot_token
-    )  # Assuming API_KEY is the bot token for now based on .env
-    dp = Dispatcher(storage=AiogramMemoryStorage())
-
-    # Подключаем middleware для локализации, передавая ему storage
-    dp.update.middleware(L10nMiddleware(settings=settings, storage=storage))
-
-    # Регистрируем хуки startup и shutdown
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
-
-    # Routers
-    # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
-    dp.include_router(common.router)
-    dp.include_router(registration.router)
-    dp.include_router(ordering.router)
-    dp.include_router(language.router) # Этот роутер должен быть последним из тех, что обрабатывают callback'и
-
-    try:
-        # Используем встроенный DI для сервисов и хранилища
-        await dp.start_polling(
-            bot,
-            auth_service=auth_service,
-            order_service=order_service,
-            storage=storage,
-            settings=settings,
-            log=log,  # Передаем логгер в хуки
-        )
-    except asyncio.CancelledError:
-        # Это исключение возникает при остановке бота (Ctrl+C),
-        # обработка не требуется, так как aiogram сам корректно завершает работу.
-        pass
+    app = BotApplication(settings)
+    await app.run()
 
 
 if __name__ == "__main__":
