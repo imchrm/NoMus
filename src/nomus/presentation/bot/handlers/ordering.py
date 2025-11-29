@@ -13,7 +13,7 @@ from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
 from nomus.infrastructure.database.memory_storage import MemoryStorage
-from nomus.presentation.bot.filters.lexicon_filter import LexiconFilter
+from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ async def _start_tariff_selection(
     await state.set_state(OrderStates.selecting_tariff)
 
 
-@router.message(LexiconFilter('start_ordering_button')) #TODO: возможно ли не передавать стринг, а передать поле например messages.start_ordering_button?
+@router.message(TextEquals("start_ordering_button"))
 async def start_ordering(
     message: Message,
     state: FSMContext,
@@ -63,19 +63,21 @@ async def start_ordering(
     if lang_code is None:
         raise ValueError("User language not found in storage.")
 
-    await _start_tariff_selection(
-        message, state, order_service, lexicon, lang_code
-    )
-    
+    await _start_tariff_selection(message, state, order_service, lexicon, lang_code)
+
 
 @router.message(OrderStates.selecting_tariff)
 async def process_tariff(message: Message, state: FSMContext, lexicon: Messages):
     if not message.text:
         return
-    tariff_name = message.text.strip() # Убираем лишние пробелы с концов строки
+    tariff_name = message.text.strip()  # Убираем лишние пробелы с концов строки
     data = await state.get_data()
     tariffs = data.get("tariffs", {})
-    log.info("Processing tariff selection. Tariff name: '%s'. Tariffs in state: %s", tariff_name, tariffs)
+    log.info(
+        "Processing tariff selection. Tariff name: '%s'. Tariffs in state: %s",
+        tariff_name,
+        tariffs,
+    )
 
     if tariff_name not in tariffs:
         await message.answer(lexicon.choose_tariff_from_list_prompt)
@@ -85,10 +87,9 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
     await state.update_data(tariff=tariff_name, amount=amount)
 
     # Inline keyboard for payment
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # but_text = lexicon.payment_button.format(amount=amount)
-    kb = [[InlineKeyboardButton(text="Оплатить", callback_data="pay")]]
-    
+    but_text = lexicon.payment_button.format(amount=amount)
+    kb = [[InlineKeyboardButton(text=but_text, callback_data="pay")]]
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 
     await message.answer(
