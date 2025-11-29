@@ -13,6 +13,15 @@ from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
 from nomus.presentation.bot.handlers import common, registration, ordering, language
 
 
+async def on_startup(bot: Bot, log: logging.Logger):
+    log.info("Starting bot...")
+
+
+async def on_shutdown(bot: Bot, log: logging.Logger):
+    log.info("Bot stopped")
+    await bot.session.close()
+
+
 
 async def main():
     logging.basicConfig(
@@ -41,6 +50,10 @@ async def main():
     # Подключаем middleware для локализации, передавая ему storage
     dp.update.middleware(L10nMiddleware(settings=settings, storage=storage))
 
+    # Регистрируем хуки startup и shutdown
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+
     # Routers
     # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
     dp.include_router(common.router)
@@ -48,16 +61,24 @@ async def main():
     dp.include_router(ordering.router)
     dp.include_router(language.router) # Этот роутер должен быть последним из тех, что обрабатывают callback'и
 
-    log.info("Starting bot...")
-    # Используем встроенный DI для сервисов и хранилища
-    await dp.start_polling(
-        bot,
-        auth_service=auth_service,
-        order_service=order_service,
-        storage=storage,
-        settings=settings,
-    )
+    try:
+        # Используем встроенный DI для сервисов и хранилища
+        await dp.start_polling(
+            bot,
+            auth_service=auth_service,
+            order_service=order_service,
+            storage=storage,
+            settings=settings,
+            log=log,  # Передаем логгер в хуки
+        )
+    except asyncio.CancelledError:
+        # Это исключение возникает при остановке бота (Ctrl+C),
+        # обработка не требуется, так как aiogram сам корректно завершает работу.
+        pass
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot stopped by user.")

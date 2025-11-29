@@ -86,8 +86,8 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
 
     # Inline keyboard for payment
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    but_text = lexicon.payment_button.format(amount=amount)
-    kb = [[InlineKeyboardButton(text=but_text, callback_data="pay")]]
+    # but_text = lexicon.payment_button.format(amount=amount)
+    kb = [[InlineKeyboardButton(text="Оплатить", callback_data="pay")]]
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 
@@ -100,7 +100,7 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
     log.info("State set to: %s", current_state)
 
 
-@router.callback_query(F.data == "pay")
+@router.callback_query(OrderStates.waiting_for_payment, F.data == "pay")
 async def process_payment(
     callback: CallbackQuery,
     state: FSMContext,

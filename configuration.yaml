@@ -1,8 +1,7 @@
 app_name: "NoMus"
-version: "0.2.2"
+version: "0.3.2"
 
 #TODO: подумать: может быть лучше перенести в отдельный файл?
-# TODO: i18n? 
 #Telegram bot lexicon
 messages:
   uz:
