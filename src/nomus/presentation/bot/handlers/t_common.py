@@ -1,4 +1,4 @@
-from aiogram import Router, F, types
+from aiogram import Router, F
 from aiogram.types import (
     Message,
     ReplyKeyboardMarkup,
