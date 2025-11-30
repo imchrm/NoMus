@@ -1,4 +1,5 @@
 import logging
+import uuid
 from aiogram import F, Router
 from aiogram.types import (
     Message,
@@ -87,11 +88,18 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
     await state.update_data(tariff=tariff_name, amount=amount)
 
     # Inline keyboard for payment
-    but_text = lexicon.payment_button.format(amount=amount)
-    kb = [[InlineKeyboardButton(text=but_text, callback_data="pay")]]
+    # but_text = lexicon.payment_button.format(amount=amount)
+    kb = [
+        [
+            InlineKeyboardButton(
+                text=lexicon.payment_button.format(amount=amount), callback_data="pay"
+            )
+        ]
+    ]
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     await message.answer(
         lexicon.payment_prompt.format(tariff_name=tariff_name, amount=amount),
         reply_markup=keyboard,
@@ -118,14 +126,16 @@ async def process_payment(
     # Assume user phone is stored in context or passed differently.
     # For PoC, we might need to ask for it or assume it's from the user object if registered.
     # Here we just use the telegram user id/name as placeholder if phone not in state
-    user_phone = str(callback.from_user.id)
+    user_id = str(callback.from_user.id)
 
     success = await order_service.create_order(
-        user_phone=user_phone, tariff=data["tariff"], amount=data["amount"]
+        user_id=user_id, tariff=data["tariff"], amount=data["amount"]
     )
-
+    order_id = uuid.uuid4()  # TODO: replace with real order id
     if success:
-        await callback.message.edit_text(lexicon.order_success)
+        await callback.message.edit_text(
+            lexicon.order_success.format(order_id=order_id)
+        )
     else:
         await callback.message.edit_text(lexicon.payment_error)
 

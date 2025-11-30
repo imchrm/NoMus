@@ -21,9 +21,10 @@ messages:
     phone_number_error: "Telefon raqamini olib bo'lmadi. Qaytadan urinib ko'ring."
     invalid_code_error: "Noto'g'ri kod. Iltimos, qaytadan urinib ko'ring."
     choose_tariff_from_list_prompt: "Iltimos, ro'yxatdan tarifni tanlang."
+    payment_button: "To'lash {amount} sum"
     payment_prompt: "Siz {tariff_name} tarifini tanladingiz. To'lanishi kerak bo'lgan summa: {amount}"
     payment_processing: "To'lov amalga oshirilmoqda…"
-    order_success: "Buyurtma muvaffaqiyatli to'landi va yaratildi!"
+    order_success: "Buyurtma #{order_id} muvaffaqiyatli to'landi va yaratildi!"
     payment_error: "To'lov xatosi."
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
@@ -42,9 +43,10 @@ messages:
     phone_number_error: "Unable to retrieve phone number. Please try again."
     invalid_code_error: "Invalid code. Please try again."
     choose_tariff_from_list_prompt: "Please select a tariff from the list."
+    payment_button: "Pay {amount} sum"
     payment_prompt: "You have selected the {tariff_name} tariff. Amount due: {amount}"
     payment_processing: "Processing payment..."
-    order_success: "The order has been successfully paid and created!"
+    order_success: "The order #{order_id} has been successfully paid and created!"
     payment_error: "Payment error."
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
@@ -66,6 +68,6 @@ messages:
     payment_button: "Оплатить {amount} сум"
     payment_prompt: "Вы выбрали тариф {tariff_name}. Сумма к оплате: {amount}"
     payment_processing: "Обработка платежа..."
-    order_success: "Заказ успешно оплачен и создан!"
+    order_success: "Заказ #{order_id} успешно оплачен и создан!"
     payment_error: "Ошибка оплаты."
 

@@ -5,7 +5,6 @@ from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 
 
 class OrderService:
-    
     _TARIFFS: Dict[str, Dict[str, int]] = {
         "ru": {"Эконом": 10000, "Стандарт": 30000, "Премиум": 50000},
         "en": {"Economy": 10000, "Standard": 30000, "Premium": 50000},
@@ -20,7 +19,7 @@ class OrderService:
     async def get_tariffs(self, lang: str = _DEFAULT_LANG) -> Dict[str, int]:
         return self._TARIFFS.get(lang, self._TARIFFS[self._DEFAULT_LANG])
 
-    async def create_order(self, user_phone: str, tariff: str, amount: int) -> bool:
+    async def create_order(self, user_id: str, tariff: str, amount: int) -> bool:
         # Process payment first
         payment_success: bool = await self.payment_service.process_payment(amount)
 
@@ -28,7 +27,7 @@ class OrderService:
             order_id = str(uuid.uuid4())
             order_data: dict[str, Any] = {
                 "id": order_id,
-                "user": user_phone,
+                "user": user_id,
                 "tariff": tariff,
                 "amount": amount,
                 "status": "paid",
