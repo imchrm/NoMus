@@ -35,6 +35,9 @@ class L10nMiddleware(BaseMiddleware):
         # под ключом 'lexicon'.
         # Это и есть ключевой момент: мы один раз используем строковый ключ,
         # чтобы получить нужный объект.
+        # Если языка нет в конфиге, откатываемся на английский
+        if not hasattr(self.settings.messages, lang_code):
+            lang_code = "en"
         lexicon_obj: Messages = getattr(self.settings.messages, lang_code)
         data["lexicon"] = lexicon_obj
 
