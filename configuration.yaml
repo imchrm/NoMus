@@ -29,6 +29,11 @@ messages:
     payment_processing: "To'lov amalga oshirilmoqda…"
     order_success: "Buyurtma #{order_id} muvaffaqiyatli to'landi va yaratildi!"
     payment_error: "To'lov xatosi."
+    user_agreement_prompt: "Пожалуйста, ознакомьтесь и примите условия:"
+    user_agreement_button: "Foydalanuvchi shartnomasi"
+    user_agreement_accept_button: "Roziman"
+    user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vTJwhwg6mWX5JSw4G3e2rh7sJ6K48oKYa_gaCq9pBnFP3FYCnI-mLUYLpJxWwkaQC55IDAuMuVSL7J_/pub"
+    agree_button: "Roziman"
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
     error: "An error occurred."
@@ -54,6 +59,11 @@ messages:
     payment_processing: "Processing payment..."
     order_success: "The order #{order_id} has been successfully paid and created!"
     payment_error: "Payment error."
+    user_agreement_prompt: "Please read and agree to the terms:"
+    user_agreement_button: "User agreement"
+    user_agreement_accept_button: "Agree"
+    user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vQdDZY4lJwZ0FWOIbF5Gvduj9zDcMSFdeypzeYr6IjXOvLLkSmotk0FMr3ziOMdzhIraL9ZDKLRFh13/pub"
+    agree_button: "Agree"
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
     error: "Произошла ошибка."
@@ -79,4 +89,9 @@ messages:
     payment_processing: "Обработка платежа..."
     order_success: "Заказ #{order_id} успешно оплачен и создан!"
     payment_error: "Ошибка оплаты."
+    user_agreement_prompt: "Пожалуйста, ознакомьтесь и примите условия:"
+    user_agreement_button: "Пользовательское соглашение"
+    user_agreement_accept_button: "Согласен"
+    user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vSSiwrImDdqZE8GDIH_K1D8tb8LYs3crheTTfzmkdMKVgCxM1XNgfenN9dG_FQULEkpMXoZZIQGLDc_/pub"
+    agree_button: "Согласен"
 

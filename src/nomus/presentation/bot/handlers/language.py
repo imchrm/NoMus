@@ -49,7 +49,7 @@ async def cmd_language(message: Message, lexicon: Messages):
 async def process_lang_select(
     callback: CallbackQuery, storage: MemoryStorage, settings: Settings
 ):
-    """Saves the selected language."""
+    """Saves the selected language and shows User Agreement."""
     if not callback.from_user:
         return
     assert callback.data is not None
@@ -63,14 +63,7 @@ async def process_lang_select(
     )
 
     # Let the user know the language has been changed
-    #
-    # Assert that the message is an accessible `Message` object, not `InaccessibleMessage`.
-    # This satisfies Pylance and ensures the .edit_text() method exists.
     assert isinstance(callback.message, Message)
-    # Шаг 1: Редактируем сообщение, убирая инлайн-клавиатуру
-    # await callback.message.edit_text(
-    #     "Язык изменен.\nLanguage has been changed.\nTil oʻzgartirildi."
-    # )
 
     # We will get the new lexicon after updating language in storage
     # TODO: how can I reload lexicon?
@@ -78,10 +71,52 @@ async def process_lang_select(
     new_lexicon = getattr(settings.messages, _language_code)
     await callback.message.edit_text(new_lexicon.language_changed_prompt)
 
-    # Шаг 2: Отправляем новое сообщение, чтобы показать основную клавиатуру
+    # Show User Agreement and Agree button
+    kb = get_agreement_kb(new_lexicon, _language_code)
+    await callback.message.answer(
+        new_lexicon.user_agreement_prompt,
+        reply_markup=kb,
+    )
+
+    await callback.answer()
+
+
+def get_agreement_kb(lexicon: Messages, lang_code: str) -> InlineKeyboardMarkup:
+    kb = [
+        [
+            InlineKeyboardButton(
+                text=f"📄 {lexicon.user_agreement_button}",
+                url=lexicon.user_agreement_url,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=lexicon.user_agreement_accept_button,
+                callback_data=f"agree_terms_{lang_code}",
+            )
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=kb)
+
+
+@router.callback_query(F.data.startswith("agree_terms_"))
+async def process_agreement(callback: CallbackQuery, settings: Settings):
+    """Handles agreement to terms."""
+    if not callback.from_user:
+        return
+    assert callback.data is not None
+    _language_code = callback.data.split("_")[2]  # 'agree_terms_ru' -> 'ru'
+
+    new_lexicon = getattr(settings.messages, _language_code)
+
+    assert isinstance(callback.message, Message)
+    # Delete the agreement message or edit it to remove buttons?
+    # Let's delete it to keep chat clean, or just edit text.
+    await callback.message.delete()
+
+    # Send welcome message with main menu
     await callback.message.answer(
         new_lexicon.welcome, reply_markup=get_start_kb(new_lexicon)
     )
 
-    # Answer the callback to remove the "loading" state on the button
     await callback.answer()
