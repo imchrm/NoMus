@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Type, Tuple
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -93,6 +93,21 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
+
+    @model_validator(mode="after")
+    def check_messages_not_empty(self) -> "Settings":
+        missing_fields = []
+        for lang_code, messages_obj in self.messages:
+            for field_name, field_value in messages_obj:
+                if field_value == "":
+                    missing_fields.append(f"{lang_code}.{field_name}")
+
+        if missing_fields:
+            raise ValueError(
+                f"Found empty message fields in `configuration.yaml`: {', '.join(missing_fields)}\nCheck that the fields in the `Messages` class (module `settings.py`) match the field names in `configuration.yaml`"
+            )
+
+        return self
 
     @classmethod
     def settings_customise_sources(
