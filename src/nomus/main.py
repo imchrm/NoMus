@@ -10,7 +10,13 @@ from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
 from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
-from nomus.presentation.bot.handlers import common, registration, ordering, language
+from nomus.presentation.bot.handlers import (
+    common,
+    registration,
+    ordering,
+    language,
+    t_common,
+)
 
 
 class BotApplication:
@@ -24,8 +30,12 @@ class BotApplication:
         self.payment_stub = PaymentServiceStub()
 
         # 2. Application Layer
-        self.auth_service = AuthService(user_repo=self.storage, sms_service=self.sms_stub)
-        self.order_service = OrderService(order_repo=self.storage, payment_service=self.payment_stub)
+        self.auth_service = AuthService(
+            user_repo=self.storage, sms_service=self.sms_stub
+        )
+        self.order_service = OrderService(
+            order_repo=self.storage, payment_service=self.payment_stub
+        )
 
         # 3. Presentation Layer
         self.bot = Bot(token=self.settings.bot_token)
@@ -38,20 +48,25 @@ class BotApplication:
     def _setup_logging(self) -> logging.Logger:
         logging.basicConfig(
             level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
         )
         return logging.getLogger(__name__)
 
     def _setup_middlewares(self):
         # Подключаем middleware для локализации, передавая ему storage
-        self.dp.update.middleware(L10nMiddleware(settings=self.settings, storage=self.storage))
+        self.dp.update.middleware(
+            L10nMiddleware(settings=self.settings, storage=self.storage)
+        )
 
     def _register_routers(self):
         # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
+        # self.dp.include_router(t_common.router)
         self.dp.include_router(common.router)
         self.dp.include_router(registration.router)
         self.dp.include_router(ordering.router)
-        self.dp.include_router(language.router)  # Этот роутер должен быть последним
+        self.dp.include_router(
+            language.router
+        )  # Этот роутер должен быть последним TODO: проверить это!
 
     def _register_lifecycle_hooks(self):
         self.dp.startup.register(self.on_startup)

@@ -14,6 +14,9 @@ class Messages(BaseModel):
     # The field values ​​below are taken from the configuration.yaml file.
     welcome: str = ""
     error: str = ""
+    language_changed_prompt: str = ""
+    confirm_phone_button: str = ""
+    share_phone_number_prompt: str = ""
     start_ordering_button: str = ""
     registration_button: str = ""
     cancel_button: str = ""

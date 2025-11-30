@@ -7,6 +7,9 @@ messages:
   uz:
     welcome: "NoMusga xush kelibsiz! Iltimos, harakatni tanlang:"
     error: "Xatolik yuz berdi."
+    language_changed_prompt: "Til o'zgartirildi."
+    confirm_phone_button: "Raqamimni tasdiqlang"
+    share_phone_number_prompt: "Kontaktingizni ulashish uchun quyidagi tugmani bosing."
     start_ordering_button: "Buyurtma berish"
     registration_button: "Ro'yxatdan o'tish"
     cancel_button: "Bekor qilish"
@@ -29,6 +32,9 @@ messages:
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
     error: "An error occurred."
+    language_changed_prompt: "Language changed."
+    confirm_phone_button: "Confirm my number"
+    share_phone_number_prompt: "Click the button below to share your contact."
     start_ordering_button: "Make an order"
     registration_button: "Registration"
     cancel_button: "Cancel"
@@ -51,6 +57,9 @@ messages:
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
     error: "Произошла ошибка."
+    language_changed_prompt: "Язык изменен."
+    confirm_phone_button: "Подтвердить мой номер"
+    share_phone_number_prompt: "Нажмите кнопку ниже, чтобы поделиться своим контактом."
     start_ordering_button: "Сделать заказ"
     registration_button: "Регистрация"
     cancel_button: "Отменить"
