@@ -23,6 +23,8 @@ class Messages(BaseModel):
     order_registration_prompt: str = ""
     send_contact_button: str = ""
     send_contact_prompt: str = ""
+    share_location_prompt: str = ""
+    share_location_button: str = ""
     code_sent_prompt: str = ""  # TODO Проверить это используется?
     send_code_as_text_prompt: str = ""
     invalid_code_error: str = ""

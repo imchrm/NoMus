@@ -36,6 +36,28 @@ async def start_registration(message: Message, state: FSMContext, lexicon: Messa
     # await message.answer(prompt_text, reply_markup=keyboard)
     # await state.set_state(RegistrationStates.waiting_for_phone)
 
+    # Make a button for sharing location of current user
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=lexicon.share_location_button, request_location=True)]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+    await message.answer(lexicon.share_location_prompt, reply_markup=kb)
+    await state.set_state(RegistrationStates.waiting_for_location)
+
+
+@router.message(RegistrationStates.waiting_for_location, F.location)
+async def process_location(message: Message, state: FSMContext, lexicon: Messages):
+    if not message.location:
+        return
+
+    await state.update_data(
+        latitude=message.location.latitude, longitude=message.location.longitude
+    )
+
     # Make a button for sharing phone number of current user
     kb = ReplyKeyboardMarkup(
         keyboard=[
@@ -108,6 +130,8 @@ async def process_code(
     if code == "1234":
         data = await state.get_data()
         phone = data.get("phone")
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
 
         if phone:
             user_data = User(
@@ -115,6 +139,8 @@ async def process_code(
                 telegram_id=message.from_user.id,
                 phone_number=phone,
                 registered_at=datetime.now(),
+                latitude=latitude,
+                longitude=longitude,
             ).model_dump()  # Преобразуем Pydantic модель в словарь для сохранения
 
             # Теперь мы не создаем нового пользователя, а обновляем существующего,

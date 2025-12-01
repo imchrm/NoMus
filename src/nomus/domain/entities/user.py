@@ -8,3 +8,5 @@ class User(BaseModel):
     telegram_id: int
     phone_number: str
     registered_at: datetime
+    latitude: float | None = None
+    longitude: float | None = None
