@@ -39,10 +39,10 @@ class Messages(BaseModel):
     order_success: str = ""
     payment_error: str = ""
     user_agreement_prompt: str = ""
-    user_agreement_prompt: str = ""
     user_agreement_url: str = ""
     user_agreement_button: str = ""
     user_agreement_accept_button: str = ""
+    order_status: str = ""
 
 
 class I18nConfig(BaseModel):

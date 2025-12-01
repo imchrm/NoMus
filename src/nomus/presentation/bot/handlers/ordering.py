@@ -8,6 +8,7 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    ReplyKeyboardRemove,
 )
 from aiogram.fsm.context import FSMContext
 from nomus.presentation.bot.states.ordering import OrderStates
@@ -88,7 +89,6 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
     await state.update_data(tariff=tariff_name, amount=amount)
 
     # Inline keyboard for payment
-    # but_text = lexicon.payment_button.format(amount=amount)
     kb = [
         [
             InlineKeyboardButton(
@@ -96,17 +96,15 @@ async def process_tariff(message: Message, state: FSMContext, lexicon: Messages)
             )
         ]
     ]
-
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
 
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     await message.answer(
         lexicon.payment_prompt.format(tariff_name=tariff_name, amount=amount),
         reply_markup=keyboard,
     )
     await state.set_state(OrderStates.waiting_for_payment)
     current_state = await state.get_state()
-    log.info("State set to: %s", current_state)
+    log.debug("State set to: %s", current_state)
 
 
 @router.callback_query(OrderStates.waiting_for_payment, F.data == "pay")
@@ -133,9 +131,12 @@ async def process_payment(
     )
     order_id = uuid.uuid4()  # TODO: replace with real order id
     if success:
-        await callback.message.edit_text(
-            lexicon.order_success.format(order_id=order_id)
+        await callback.message.delete()
+        await callback.message.answer(
+            lexicon.order_success.format(order_id=order_id),
+            reply_markup=ReplyKeyboardRemove(),
         )
+        await callback.message.answer(lexicon.order_status)
     else:
         await callback.message.edit_text(lexicon.payment_error)
 

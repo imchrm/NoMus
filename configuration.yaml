@@ -36,6 +36,7 @@ messages:
     user_agreement_accept_button: "Roziman"
     user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vTJwhwg6mWX5JSw4G3e2rh7sJ6K48oKYa_gaCq9pBnFP3FYCnI-mLUYLpJxWwkaQC55IDAuMuVSL7J_/pub"
     agree_button: "Roziman"
+    order_status: "Buyurtma holati: Qayta ishlanmoqda"
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
     error: "An error occurred."
@@ -68,6 +69,7 @@ messages:
     user_agreement_accept_button: "Agree"
     user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vQdDZY4lJwZ0FWOIbF5Gvduj9zDcMSFdeypzeYr6IjXOvLLkSmotk0FMr3ziOMdzhIraL9ZDKLRFh13/pub"
     agree_button: "Agree"
+    order_status: "Order status: Processing"
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
     error: "Произошла ошибка."
@@ -100,4 +102,5 @@ messages:
     user_agreement_accept_button: "Согласен"
     user_agreement_url: "https://docs.google.com/document/d/e/2PACX-1vSSiwrImDdqZE8GDIH_K1D8tb8LYs3crheTTfzmkdMKVgCxM1XNgfenN9dG_FQULEkpMXoZZIQGLDc_/pub"
     agree_button: "Согласен"
+    order_status: "Статус вашего заказа: Обработка"
 
