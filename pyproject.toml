@@ -6,11 +6,7 @@ authors = [{ name = "Dimitrii Chrm", email = "im.chrm@gmail.com" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "pydantic-settings>=2.0.0",
-    "pyyaml (>=6.0.3,<7.0.0)",
-    "aiogram (>=3.22.0,<4.0.0)",
-]
+dependencies = ["pydantic-settings>=2.0.0", "pyyaml (>=6.0.3,<7.0.0)", "aiogram (>=3.22.0,<4.0.0)"]
 
 [tool.poetry]
 packages = [{ include = "nomus", from = "src" }]
@@ -28,7 +24,7 @@ nomus = "nomus.main:run"
 
 [tool.poetry.scripts]
 # запуск как скрипт (не рекомендуется): poetry run start-bot
-start-bot = "nomus.main:run"
+start-bot = "nomus.main:main"
 
 [tool.pylint.messages_control]
 # C0303: Trailing whitespace

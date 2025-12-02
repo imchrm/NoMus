@@ -15,7 +15,6 @@ from nomus.presentation.bot.handlers import (
     registration,
     ordering,
     language,
-    t_common,
 )
 
 

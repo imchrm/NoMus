@@ -4,7 +4,6 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from nomus.infrastructure.database.memory_storage import MemoryStorage
-from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 from nomus.presentation.bot.handlers.language import _send_language_selection
 
@@ -37,8 +36,8 @@ async def cmd_start(
     await _send_language_selection(message)
 
 
+# @router.message(LexiconFilter('cancel_button'))
 @router.message(Command("cancel"))
-@router.message(TextEquals("cancel_button"))
 async def cmd_cancel(message: Message, state: FSMContext, lexicon: Messages):
     # ...
 
