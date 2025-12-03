@@ -24,6 +24,7 @@ try:
 
     # 2. Dynamic access (using a variable)
     LANG = 'uz'
+    # FIX: It!
     print(f"UZ (dynamic): {settings.messages[LANG].welcome}")
     # lang_config = I18nConfig()
     # print(f"UZ (dynamic): {settings.messages[lang_config.ru].welcome}")
