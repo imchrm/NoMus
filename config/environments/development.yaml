@@ -1,0 +1,23 @@
+environment: development
+
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+
+database:
+  type: memory  # используем MemoryStorage
+
+services:
+  sms:
+    type: stub
+  payment:
+    type: stub
+    delay_seconds: 1
+
+bot:
+  polling_timeout: 30
+
+api:
+  host: "127.0.0.1"
+  port: 8000
+  reload: true  # hot reload для dev

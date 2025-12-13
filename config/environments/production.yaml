@@ -1,0 +1,36 @@
+environment: production
+
+logging:
+  level: WARNING
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+
+database:
+  type: postgres
+  host: "${DB_HOST}"
+  port: 5432
+  name: "nomus_production"
+  pool_size: 20
+  max_overflow: 10
+
+services:
+  sms:
+    type: real
+    provider: "eskiz"
+    test_mode: false
+  payment:
+    type: real
+    provider: "payme"
+    test_mode: false
+
+bot:
+  polling_timeout: 60
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  workers: 4
+
+monitoring:
+  sentry_dsn: "${SENTRY_DSN}"
+  enable_metrics: true
