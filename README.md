@@ -51,34 +51,92 @@ poetry install
 source .venv/bin/activate
 ```
 
-## .env
+## Environment Configuration
 
-Create `.env` file in the root directory of the project.
-`.env` will keep all your secret and sensitive information that should not be published in a public repository. 
-Add the following variables:
+The project supports multiple environments: **development**, **staging**, and **production**.
 
+### Setting Up Environment
+
+1. Copy `.env.example` to `.env`:
 ```bash
-DEBUG=True
+cp .env.example .env
+```
 
-BOT_TOKEN=your_token_bot #Give it from BotFather
+2. Edit `.env` and set your environment variables:
+```bash
+# Select environment: development, staging, production
+ENV=development
+
+DEBUG=True
+BOT_TOKEN=your_token_from_BotFather
 
 API_KEY=your_api_key
 API_SECRET=your_api_secret
 API_PASSWORD=your_api_password
 API_URL=your_api_url
+
+# For staging/production (PostgreSQL)
+DB_HOST=localhost
+DB_USER=nomus_user
+DB_PASSWORD=secure_password
 ```
+
+### Environment Differences
+
+| Feature | Development | Staging | Production |
+|---------|-------------|---------|------------|
+| Database | In-memory | PostgreSQL | PostgreSQL |
+| SMS Service | Stub (logs to console) | Real (test mode) | Real (live) |
+| Payment Service | Stub (instant) | Real (test mode) | Real (live) |
+| Logging Level | DEBUG | INFO | WARNING |
+| Monitoring | Disabled | Optional | Enabled |
+
+### Configuration Files
+
+Environment-specific settings are stored in:
+- `config/environments/development.yaml` - Development settings
+- `config/environments/staging.yaml` - Staging settings
+- `config/environments/production.yaml` - Production settings
+- `config/localization/messages.yaml` - Localization messages (all environments)
 
 ## Usage
 
-To run the application:
+### Running in Different Environments
 
+**Development (default):**
 ```bash
-poetry run python -m nomus.main
+# Using scripts
+./scripts/run_dev.sh      # Linux/MacOS
+scripts\run_dev.bat       # Windows
+
+# Or manually
+ENV=development poetry run python -m nomus.main
 ```
 
-Or if you are in the virtual environment:
-
+**Staging:**
 ```bash
+# Using scripts
+./scripts/run_staging.sh   # Linux/MacOS
+scripts\run_staging.bat    # Windows
+
+# Or manually
+ENV=staging poetry run python -m nomus.main
+```
+
+**Production:**
+```bash
+# Using scripts
+./scripts/run_prod.sh      # Linux/MacOS
+scripts\run_prod.bat       # Windows
+
+# Or manually
+ENV=production poetry run python -m nomus.main
+```
+
+**Legacy method (uses development by default):**
+```bash
+poetry run python -m nomus.main
+# or in virtual environment:
 nomus
 ```
 

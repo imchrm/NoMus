@@ -1,17 +1,70 @@
 from pathlib import Path
-from typing import Any, Dict, Type, Tuple
+from typing import Any, Dict, Type, Tuple, Literal, Optional
 import yaml
-from pydantic import BaseModel, model_validator
+import os
+import re
+from pydantic import BaseModel, model_validator, Field
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
     PydanticBaseSettingsSource,
 )
-# from .default_messages import DEFAULT_MESSAGES
+from .environment import Environment
+
+
+class DatabaseConfig(BaseModel):
+    """Конфигурация базы данных"""
+
+    type: Literal["memory", "postgres"] = "memory"
+    host: str = ""
+    port: int = 5432
+    name: str = ""
+    user: str = ""
+    password: str = ""
+    pool_size: int = 10
+    max_overflow: int = 5
+
+
+class ServiceConfig(BaseModel):
+    """Конфигурация внешнего сервиса"""
+
+    type: Literal["stub", "real"] = "stub"
+    provider: str = ""
+    test_mode: bool = True
+
+
+class LoggingConfig(BaseModel):
+    """Конфигурация логирования"""
+
+    level: str = "INFO"
+    format: str = "%(asctime)s - %(levelname)s - %(message)s"
+
+
+class BotConfig(BaseModel):
+    """Конфигурация Telegram бота"""
+
+    polling_timeout: int = 30
+
+
+class ApiConfig(BaseModel):
+    """Конфигурация API сервера"""
+
+    host: str = "127.0.0.1"
+    port: int = 8000
+    reload: bool = False
+    workers: int = 1
+
+
+class MonitoringConfig(BaseModel):
+    """Конфигурация мониторинга"""
+
+    sentry_dsn: str = ""
+    enable_metrics: bool = False
 
 
 class Messages(BaseModel):
-    # The field values ​​below are taken from the configuration.yaml file.
+    """Сообщения для локализации"""
+
     welcome: str = ""
     error: str = ""
     language_changed_prompt: str = ""
@@ -25,13 +78,13 @@ class Messages(BaseModel):
     send_contact_prompt: str = ""
     share_location_prompt: str = ""
     share_location_button: str = ""
-    code_sent_prompt: str = ""  # TODO Проверить это используется?
+    code_sent_prompt: str = ""
     send_code_as_text_prompt: str = ""
     invalid_code_error: str = ""
     enter_4_digits_prompt: str = ""
     registration_successful: str = ""
     select_tariff_prompt: str = ""
-    phone_number_error: str = ""  # TODO Проверить это используется?
+    phone_number_error: str = ""
     choose_tariff_from_list_prompt: str = ""
     payment_button: str = ""
     payment_prompt: str = ""
@@ -46,48 +99,116 @@ class Messages(BaseModel):
 
 
 class I18nConfig(BaseModel):
+    """Интернационализация"""
+
     uz: Messages = Messages()
     en: Messages = Messages()
     ru: Messages = Messages()
 
 
-class YamlConfigSettingsSource(PydanticBaseSettingsSource):
-    def get_field_value(self, field: Any, field_name: str) -> Tuple[Any, str, bool]:
-        encoding: str | None = self.config.get("env_file_encoding")
-        file_content_json: Any = yaml.safe_load(
-            Path("configuration.yaml").read_text(encoding)
-        )
-        field_value: Any = file_content_json.get(field_name)
-        return field_value, field_name, False
+class EnvironmentConfigSource(PydanticBaseSettingsSource):
+    """Загружает конфигурацию из config/environments/{env}.yaml"""
+
+    def get_field_value(
+        self, field: Any, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        """Получает значение поля из источника"""
+        return None, field_name, False
 
     def prepare_field_value(
         self, field_name: str, field: Any, value: Any, value_is_complex: bool
     ) -> Any:
+        """Подготавливает значение поля"""
         return value
 
     def __call__(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {}
-        encoding: str | None = self.config.get("env_file_encoding")
-        config_file = Path("configuration.yaml")
+
+        # Определяем окружение из переменной ENV
+        env_name = os.getenv("ENV", "development")
+        env = Environment.from_string(env_name)
+
+        # Путь к файлу окружения
+        config_file = Path(f"config/environments/{env.value}.yaml")
 
         if not config_file.exists():
+            print(f"Warning: Config file {config_file} not found")
             return d
 
         try:
-            file_content: Dict[str, Any] = yaml.safe_load(
-                config_file.read_text(encoding or "utf-8")
-            )
-            if file_content:
-                d.update(file_content)
+            content = yaml.safe_load(config_file.read_text("utf-8"))
+            if content:
+                # Раскрываем переменные окружения в значениях
+                d.update(self._expand_env_vars(content))
         except Exception as e:
-            # Handle or log error if needed
-            print(f"Error loading yaml: {e}")
+            print(f"Error loading environment config: {e}")
+
+        return d
+
+    def _expand_env_vars(self, obj: Any) -> Any:
+        """Рекурсивно заменяет ${VAR} на значения из переменных окружения"""
+        if isinstance(obj, dict):
+            return {k: self._expand_env_vars(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._expand_env_vars(item) for item in obj]
+        elif isinstance(obj, str):
+            # Заменяем ${VAR_NAME} на значение из переменных окружения
+            pattern = r"\$\{([^}]+)\}"
+
+            def replace_var(match):
+                var_name = match.group(1)
+                return os.getenv(var_name, match.group(0))
+
+            return re.sub(pattern, replace_var, obj)
+        return obj
+
+
+class LocalizationConfigSource(PydanticBaseSettingsSource):
+    """Загружает сообщения из config/localization/messages.yaml"""
+
+    def get_field_value(
+        self, field: Any, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        """Получает значение поля из источника"""
+        return None, field_name, False
+
+    def prepare_field_value(
+        self, field_name: str, field: Any, value: Any, value_is_complex: bool
+    ) -> Any:
+        """Подготавливает значение поля"""
+        return value
+
+    def __call__(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {}
+
+        # Пробуем новый путь
+        config_file = Path("config/localization/messages.yaml")
+
+        # Fallback на старый путь для обратной совместимости
+        if not config_file.exists():
+            config_file = Path("configuration.yaml")
+
+        if not config_file.exists():
+            print("Warning: Localization file not found")
+            return d
+
+        try:
+            content = yaml.safe_load(config_file.read_text("utf-8"))
+            if content and "messages" in content:
+                d["messages"] = content["messages"]
+        except Exception as e:
+            print(f"Error loading localization: {e}")
 
         return d
 
 
 class Settings(BaseSettings):
-    # Env settings
+    """Главный класс настроек приложения"""
+
+    # Environment
+    env: Environment = Field(default=Environment.DEVELOPMENT)
+
+    # Secret variables (from .env)
     debug: bool = False
     bot_token: str = ""
     api_key: str = ""
@@ -95,9 +216,23 @@ class Settings(BaseSettings):
     api_password: str = ""
     api_url: str = ""
 
-    # Yaml settings
-    # app_name: str = "NoMus" # TODO удалить
-    # version: str = "0.0.1" # TODO удалить
+    # Database credentials (from .env)
+    db_host: str = ""
+    db_user: str = ""
+    db_password: str = ""
+
+    # Monitoring (from .env)
+    sentry_dsn: str = ""
+
+    # Environment-specific configs (from yaml files)
+    database: DatabaseConfig = DatabaseConfig()
+    logging: LoggingConfig = LoggingConfig()
+    services: Dict[str, ServiceConfig] = {}
+    bot: BotConfig = BotConfig()
+    api: ApiConfig = ApiConfig()
+    monitoring: MonitoringConfig = MonitoringConfig()
+
+    # Localization
     messages: I18nConfig = I18nConfig()
 
     model_config = SettingsConfigDict(
@@ -105,7 +240,15 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
+    def setup_environment(self) -> "Settings":
+        """Устанавливает окружение из переменной ENV"""
+        env_name = os.getenv("ENV", "development")
+        self.env = Environment.from_string(env_name)
+        return self
+
+    @model_validator(mode="after")
     def check_messages_not_empty(self) -> "Settings":
+        """Проверяет, что все сообщения локализации заполнены"""
         missing_fields = []
         for lang_code, messages_obj in self.messages:
             for field_name, field_value in messages_obj:
@@ -114,7 +257,8 @@ class Settings(BaseSettings):
 
         if missing_fields:
             raise ValueError(
-                f"Found empty message fields in `configuration.yaml`: {', '.join(missing_fields)}\nCheck that the fields in the `Messages` class (module `settings.py`) match the field names in `configuration.yaml`"
+                f"Found empty message fields in localization file: {', '.join(missing_fields)}\n"
+                f"Check that the fields in the `Messages` class match the field names in the YAML file"
             )
 
         return self
@@ -128,10 +272,38 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """Определяет порядок загрузки настроек"""
         return (
             init_settings,
             env_settings,
             dotenv_settings,
-            YamlConfigSettingsSource(settings_cls),
+            EnvironmentConfigSource(settings_cls),
+            LocalizationConfigSource(settings_cls),
             file_secret_settings,
+        )
+
+    def is_development(self) -> bool:
+        """Проверяет, запущено ли приложение в режиме разработки"""
+        return self.env == Environment.DEVELOPMENT
+
+    def is_staging(self) -> bool:
+        """Проверяет, запущено ли приложение в режиме staging"""
+        return self.env == Environment.STAGING
+
+    def is_production(self) -> bool:
+        """Проверяет, запущено ли приложение в режиме production"""
+        return self.env == Environment.PRODUCTION
+
+    def get_log_level(self) -> str:
+        """Возвращает уровень логирования"""
+        return self.logging.level
+
+    def get_database_url(self) -> Optional[str]:
+        """Формирует URL для подключения к PostgreSQL"""
+        if self.database.type != "postgres":
+            return None
+
+        return (
+            f"postgresql://{self.db_user}:{self.db_password}"
+            f"@{self.database.host}:{self.database.port}/{self.database.name}"
         )

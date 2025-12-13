@@ -4,9 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage as AiogramMemoryStorage
 
 from nomus.config.settings import Settings
-from nomus.infrastructure.database.memory_storage import MemoryStorage
-from nomus.infrastructure.services.sms_stub import SmsServiceStub
-from nomus.infrastructure.services.payment_stub import PaymentServiceStub
+from nomus.infrastructure.factory import ServiceFactory
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
 from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
@@ -23,17 +21,21 @@ class BotApplication:
         self.settings = settings
         self.log = self._setup_logging()
 
-        # 1. Infrastructure Layer
-        self.storage = MemoryStorage()
-        self.sms_stub = SmsServiceStub()
-        self.payment_stub = PaymentServiceStub()
+        self.log.info(
+            f"Starting NoMus in {settings.env.value.upper()} environment"
+        )
+
+        # 1. Infrastructure Layer - используем фабрику
+        self.storage = ServiceFactory.create_storage(settings)
+        self.sms_service = ServiceFactory.create_sms_service(settings)
+        self.payment_service = ServiceFactory.create_payment_service(settings)
 
         # 2. Application Layer
         self.auth_service = AuthService(
-            user_repo=self.storage, sms_service=self.sms_stub
+            user_repo=self.storage, sms_service=self.sms_service
         )
         self.order_service = OrderService(
-            order_repo=self.storage, payment_service=self.payment_stub
+            order_repo=self.storage, payment_service=self.payment_service
         )
 
         # 3. Presentation Layer
@@ -45,9 +47,10 @@ class BotApplication:
         self._register_lifecycle_hooks()
 
     def _setup_logging(self) -> logging.Logger:
+        log_config = self.settings.logging
         logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+            level=getattr(logging, log_config.level),
+            format=log_config.format,
         )
         return logging.getLogger(__name__)
 
