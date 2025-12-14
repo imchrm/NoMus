@@ -1,6 +1,6 @@
 import uuid
 from typing import Dict, Any
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IOrderRepository
 from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 
 
@@ -12,8 +12,10 @@ class OrderService:
     }
     _DEFAULT_LANG = "ru"
 
-    def __init__(self, order_repo: MemoryStorage, payment_service: PaymentServiceStub):
-        self.order_repo: MemoryStorage = order_repo
+    def __init__(
+        self, order_repo: IOrderRepository, payment_service: PaymentServiceStub
+    ):
+        self.order_repo: IOrderRepository = order_repo
         self.payment_service: PaymentServiceStub = payment_service
 
     async def get_tariffs(self, lang: str = _DEFAULT_LANG) -> Dict[str, int]:
@@ -32,6 +34,6 @@ class OrderService:
                 "amount": amount,
                 "status": "paid",
             }
-            await self.order_repo.create_order(order_id, order_data)
+            await self.order_repo.save_or_update_order(order_id, order_data)
             return True
         return False

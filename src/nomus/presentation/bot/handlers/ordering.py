@@ -14,7 +14,7 @@ from aiogram.fsm.context import FSMContext
 from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 
@@ -48,7 +48,7 @@ async def start_ordering(
     state: FSMContext,
     order_service: OrderService,
     auth_service: AuthService,
-    storage: MemoryStorage,
+    storage: IUserRepository,
     lexicon: Messages,
 ):
     # We can't process an action without a user (e.g., from a channel)
