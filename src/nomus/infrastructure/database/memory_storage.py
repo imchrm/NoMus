@@ -6,18 +6,18 @@ log: logging.Logger = logging.getLogger(__name__)
 
 class MemoryStorage:
     def __init__(self):
-        # self.users: Dict[str, Any] = {}
-        # Давайте сменим ключ на telegram_id (int), как вы и предложили.
-        # Это гораздо более надежный и эффективный подход.
-        self.users: Dict[int, Any] = {}
-        self.orders: Dict[str, Any] = {}
+        self.users: Dict[int, Dict[str, Any]] = {}
+        self.orders: Dict[str, Dict[str, Any]] = {}
 
     # --- User Repository Implementation ---
 
     async def save_or_update_user(self, telegram_id: int, data: Dict[str, Any]) -> None:
         """Saves or updates user data using telegram_id as the key."""
         if telegram_id in self.users:
-            self.users[telegram_id].update(data)
+            _user = self.users[telegram_id]
+            _user.update(data)
+            self.users[telegram_id] = _user
+            
             log.info("User %s updated with data: %s", telegram_id, data)
         else:
             self.users[telegram_id] = data
@@ -66,7 +66,14 @@ class MemoryStorage:
     # --- Order Repository Implementation ---
 
     async def save_or_update_order(self, order_id: str, data: Dict[str, Any]) -> None:
-        self.orders[order_id] = data
+        if order_id in self.orders:
+            _order = self.orders[order_id]
+            _order.update(data)
+            self.orders[order_id] = _order
+            log.debug("[DB] Order %s updated: %s", order_id, data)
+        else:
+            self.orders[order_id] = data
+            log.debug("[DB] Order %s created: %s", order_id, data)
         log.info("[DB] Order %s saved: %s", order_id, data)
 
     async def get_order_by_id(self, order_id: str) -> Dict[str, Any] | None:
@@ -79,13 +86,18 @@ class MemoryStorage:
         return None
 
     async def get_orders_by_user(self, telegram_id: int) -> List[Dict[str, Any]]:
-        user_orders = []
-        for order in self.orders.values():
-            if (
-                order.get("user") == telegram_id
-            ):  # Assuming "user" field holds telegram_id
-                user_orders.append(order)
-        return user_orders
+        # _user_orders = []
+        # for order in self.orders.values():
+        #     if (
+        #         order.get("telegram_id") == telegram_id
+        #     ):  # Assuming "user" field holds telegram_id
+        #         _user_orders.append(order)
+        _user_orders = [
+            order for order in self.orders.values()
+            if order.get("user_id") == telegram_id or order.get("telegram_id") == telegram_id
+        ]
+        log.debug("Found %d orders for user %s", len(_user_orders), telegram_id)
+        return _user_orders
 
     async def update_order_status(self, order_id: str, status: str) -> None:
         order = self.orders.get(order_id)
