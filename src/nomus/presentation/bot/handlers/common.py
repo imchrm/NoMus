@@ -3,7 +3,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages
 from nomus.presentation.bot.handlers.language import _send_language_selection
 
@@ -20,7 +20,7 @@ def get_start_kb(lexicon: Messages) -> ReplyKeyboardMarkup:
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, state: FSMContext, lexicon: Messages, storage: MemoryStorage
+    message: Message, state: FSMContext, lexicon: Messages, storage: IUserRepository
 ):
     await state.clear()
     if message.from_user:

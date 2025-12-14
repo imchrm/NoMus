@@ -1,12 +1,10 @@
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.infrastructure.services.sms_stub import SmsServiceStub
-from nomus.domain.entities.user import User
 
 
 class AuthService:
-
-    def __init__(self, user_repo: MemoryStorage, sms_service: SmsServiceStub):
-        self.user_repo: MemoryStorage = user_repo
+    def __init__(self, user_repo: IUserRepository, sms_service: SmsServiceStub):
+        self.user_repo: IUserRepository = user_repo
         self.sms_service: SmsServiceStub = sms_service
 
     async def send_verification_code(self, phone: str) -> str:

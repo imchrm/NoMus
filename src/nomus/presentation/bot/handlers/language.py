@@ -9,7 +9,7 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
 )
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages, Settings
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def cmd_language(message: Message, lexicon: Messages):
 
 @router.callback_query(F.data.startswith("lang_"))
 async def process_lang_select(
-    callback: CallbackQuery, storage: MemoryStorage, settings: Settings
+    callback: CallbackQuery, storage: IUserRepository, settings: Settings
 ):
     """Saves the selected language and shows User Agreement."""
     if not callback.from_user:
