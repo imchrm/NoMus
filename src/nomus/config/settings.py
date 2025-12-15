@@ -140,7 +140,7 @@ class EnvironmentConfigSource(PydanticBaseSettingsSource):
             if content:
                 # Раскрываем переменные окружения в значениях
                 d.update(self._expand_env_vars(content))
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             print(f"Error loading environment config: {e}")
 
         return d
@@ -196,7 +196,7 @@ class LocalizationConfigSource(PydanticBaseSettingsSource):
             content = yaml.safe_load(config_file.read_text("utf-8"))
             if content and "messages" in content:
                 d["messages"] = content["messages"]
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             print(f"Error loading localization: {e}")
 
         return d
