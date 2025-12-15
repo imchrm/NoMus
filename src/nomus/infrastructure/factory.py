@@ -4,7 +4,8 @@
 """
 
 from typing import Any
-from nomus.config.settings import Settings
+from nomus.config.settings import StorageConstants, Settings
+from nomus.domain.interfaces.repo_interface import IStorageRepository
 from nomus.infrastructure.database.memory_storage import MemoryStorage
 from nomus.infrastructure.services.sms_stub import SmsServiceStub
 from nomus.infrastructure.services.payment_stub import PaymentServiceStub
@@ -21,7 +22,7 @@ class ServiceFactory:
     """
 
     @staticmethod
-    def create_storage(settings: Settings) -> Any:
+    def create_storage(settings: Settings) -> IStorageRepository:
         """
         Создает хранилище данных в зависимости от типа БД в настройках.
 
@@ -35,15 +36,15 @@ class ServiceFactory:
             ValueError: Если указан неизвестный тип БД
             NotImplementedError: Если реализация для типа БД еще не готова
         """
-        if settings.database.type == "memory":
+        if settings.database.type == StorageConstants.DB_MEMORY_TYPE:
             return MemoryStorage()
-        elif settings.database.type == "postgres":
-            # TODO: Реализовать PostgresStorage
+        elif settings.database.type == StorageConstants.DB_POSTGRES_TYPE:
+            #TODO: Реализовать PostgresStorage
             # from nomus.infrastructure.database.postgres_storage import PostgresStorage
             # return PostgresStorage(settings.database)
             raise NotImplementedError(
                 "PostgreSQL storage not implemented yet. "
-                "Use 'memory' type for development."
+                "Use 'StorageConstants.DB_MEMORY_TYPE' type for development."
             )
         else:
             raise ValueError(f"Unknown database type: {settings.database.type}")

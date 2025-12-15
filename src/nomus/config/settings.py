@@ -1,8 +1,8 @@
 from pathlib import Path
-from typing import Any, Dict, Type, Tuple, Literal, Optional
-import yaml
+from typing import Any, Dict, Type, Tuple, Literal, Optional, Final
 import os
 import re
+import yaml
 from pydantic import BaseModel, model_validator, Field
 from pydantic_settings import (
     BaseSettings,
@@ -200,6 +200,11 @@ class LocalizationConfigSource(PydanticBaseSettingsSource):
             print(f"Error loading localization: {e}")
 
         return d
+
+class StorageConstants:
+    """Константы для работы с репозитариями"""
+    DB_MEMORY_TYPE: Final[str] = "memory"
+    DB_POSTGRES_TYPE: Final[str] = "postgres"
 
 
 class Settings(BaseSettings):

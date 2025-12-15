@@ -1,16 +1,18 @@
-from typing import Protocol, Any
+from abc import ABC, abstractmethod
+from typing import Any
 
 
-class IUserRepository(Protocol):
+class IUserRepository(ABC):
     """
-    Interface for user repository operations.
+    Abstract base class for user repository operations.
     Defines the contract that any user data storage system must implement.
-
+    
     This interface follows the Dependency Inversion Principle from SOLID:
     - High-level modules (Application layer) depend on this abstraction
     - Low-level modules (Infrastructure layer) implement this abstraction
     """
 
+    @abstractmethod
     async def save_or_update_user(self, telegram_id: int, data: dict[str, Any]) -> None:
         """
         Creates a new user or updates existing user data.
@@ -19,8 +21,8 @@ class IUserRepository(Protocol):
             telegram_id: Unique Telegram user identifier
             data: Dictionary containing user data (phone_number, language_code, etc.)
         """
-        ...
 
+    @abstractmethod
     async def get_user_by_phone(self, phone: str) -> dict[str, Any] | None:
         """
         Finds a user by their phone number.
@@ -35,8 +37,8 @@ class IUserRepository(Protocol):
             This operation may be less efficient than get_user_by_telegram_id
             as it requires scanning through all users.
         """
-        ...
 
+    @abstractmethod
     async def get_user_by_telegram_id(self, telegram_id: int) -> dict[str, Any] | None:
         """
         Finds a user by their Telegram ID (primary key).
@@ -47,8 +49,8 @@ class IUserRepository(Protocol):
         Returns:
             User data dictionary if found, None otherwise
         """
-        ...
 
+    @abstractmethod
     async def get_user_language(self, telegram_id: int) -> str | None:
         """
         Gets the language code for a specific user.
@@ -62,8 +64,8 @@ class IUserRepository(Protocol):
         Raises:
             ValueError: If language_code exists but is invalid
         """
-        ...
 
+    @abstractmethod
     async def update_user_language(self, telegram_id: int, language_code: str) -> bool:
         """
         Updates the language for a user.
@@ -75,8 +77,8 @@ class IUserRepository(Protocol):
         Returns:
             True if update was successful
         """
-        ...
 
+    @abstractmethod
     async def delete_user(self, telegram_id: int) -> bool:
         """
         Deletes a user from the repository.
@@ -87,15 +89,15 @@ class IUserRepository(Protocol):
         Returns:
             True if user was deleted, False if user was not found
         """
-        ...
 
 
-class IOrderRepository(Protocol):
+class IOrderRepository(ABC):
     """
-    Interface for order repository operations.
+    Abstract base class for order repository operations.
     Defines the contract that any order data storage system must implement.
     """
 
+    @abstractmethod
     async def save_or_update_order(self, order_id: str, data: dict[str, Any]) -> None:
         """
         Creates a new order or updates an existing order.
@@ -104,8 +106,8 @@ class IOrderRepository(Protocol):
             order_id: Unique order identifier
             data: Dictionary containing order data (user_id, tariff, amount, status, etc.)
         """
-        ...
 
+    @abstractmethod
     async def get_order_by_id(self, order_id: str) -> dict[str, Any] | None:
         """
         Retrieves an order by its ID.
@@ -116,8 +118,8 @@ class IOrderRepository(Protocol):
         Returns:
             Order data dictionary if found, None otherwise
         """
-        ...
 
+    @abstractmethod
     async def get_order_status(self, order_id: str) -> str | None:
         """
         Gets the status of a specific order.
@@ -128,8 +130,8 @@ class IOrderRepository(Protocol):
         Returns:
             Order status (e.g., 'pending', 'processing', 'completed') if found, None otherwise
         """
-        ...
 
+    @abstractmethod
     async def get_orders_by_user(self, telegram_id: int) -> list[dict[str, Any]]:
         """
         Retrieves all orders for a specific user.
@@ -140,8 +142,8 @@ class IOrderRepository(Protocol):
         Returns:
             List of order dictionaries. Empty list if no orders found.
         """
-        ...
 
+    @abstractmethod
     async def update_order_status(self, order_id: str, status: str) -> None:
         """
         Updates the status of an order.
@@ -153,4 +155,16 @@ class IOrderRepository(Protocol):
         Raises:
             KeyError: If order with given ID does not exist
         """
-        ...
+
+class IStorageRepository(IUserRepository, IOrderRepository, ABC):
+    """
+    Combined storage repository interface.
+    
+    Aggregates both user and order repository operations into a single
+    storage abstraction. Implementations must provide both user and order
+    management capabilities.
+    
+    This interface is used by ServiceFactory to ensure consistent
+    storage implementations across different environments (memory, PostgreSQL, etc.).
+    """
+    
