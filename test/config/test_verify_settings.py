@@ -19,9 +19,7 @@ try:
 
     settings = Settings()
     print("Settings loaded successfully:")
-    print(f"App Name: {settings.app_name}")
     print(f"Bot Token: {settings.bot_token}")
-    print(f"Version: {settings.version}")
     print(f"Debug: {settings.debug}")
     print(f"API Key: {settings.api_key}")
     print(f"API URL: {settings.api_url}")
