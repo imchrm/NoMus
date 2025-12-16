@@ -1,0 +1,40 @@
+# Конфигурация для разработки с использованием удаленных микросервисов NMservices
+# Использование: ENV=development-remote python -m nomus.main
+#
+# Этот режим полезен для:
+# - Тестирования интеграции с удаленным API
+# - Разработки без локального NMservices
+# - Проверки работы бота с реальными эндпоинтами
+
+environment: development
+
+logging:
+  level: DEBUG
+  format: "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+
+database:
+  type: memory  # используем MemoryStorage
+
+# Используем удаленные микросервисы NMservices
+services:
+  sms:
+    type: remote
+  payment:
+    type: remote
+
+# Конфигурация удаленного API NMservices
+remote_api:
+  enabled: true
+  base_url: "${REMOTE_API_BASE_URL}"  # http://94.158.50.119:9800
+  api_key: "${REMOTE_API_KEY}"         # troxivasine23
+  timeout: 30.0
+  max_retries: 3
+  retry_delay: 1.0
+
+bot:
+  polling_timeout: 30
+
+api:
+  host: "127.0.0.1"
+  port: 8000
+  reload: true

@@ -3,12 +3,18 @@
 Реализует паттерн Factory для инстанцирования конкретных реализаций интерфейсов.
 """
 
-from typing import Any
+from typing import Any, Optional
 from nomus.config.settings import StorageConstants, Settings
 from nomus.domain.interfaces.repo_interface import IStorageRepository
 from nomus.infrastructure.database.memory_storage import MemoryStorage
 from nomus.infrastructure.services.sms_stub import SmsServiceStub
 from nomus.infrastructure.services.payment_stub import PaymentServiceStub
+from nomus.infrastructure.services.remote_api_client import (
+    RemoteApiClient,
+    RemoteApiConfig,
+)
+from nomus.infrastructure.services.sms_remote import SmsServiceRemote
+from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
 
 
 class ServiceFactory:
@@ -17,9 +23,12 @@ class ServiceFactory:
 
     Создает конкретные реализации в зависимости от настроек окружения:
     - Development: использует заглушки (stubs)
+    - Development + remote: использует удаленные микросервисы NMservices
     - Staging: использует реальные сервисы в тестовом режиме
     - Production: использует реальные сервисы в боевом режиме
     """
+
+    _api_client: Optional[RemoteApiClient] = None
 
     @staticmethod
     def create_storage(settings: Settings) -> IStorageRepository:
@@ -49,8 +58,30 @@ class ServiceFactory:
         else:
             raise ValueError(f"Unknown database type: {settings.database.type}")
 
-    @staticmethod
-    def create_sms_service(settings: Settings) -> Any:
+    @classmethod
+    def _get_api_client(cls, settings: Settings) -> RemoteApiClient:
+        """
+        Получает или создает общий HTTP-клиент для удаленных сервисов.
+
+        Args:
+            settings: Настройки приложения
+
+        Returns:
+            Экземпляр RemoteApiClient
+        """
+        if cls._api_client is None:
+            config = RemoteApiConfig(
+                base_url=settings.remote_api.base_url,
+                api_key=settings.remote_api.api_key,
+                timeout=settings.remote_api.timeout,
+                max_retries=settings.remote_api.max_retries,
+                retry_delay=settings.remote_api.retry_delay,
+            )
+            cls._api_client = RemoteApiClient(config)
+        return cls._api_client
+
+    @classmethod
+    def create_sms_service(cls, settings: Settings) -> Any:
         """
         Создает SMS сервис в зависимости от настроек окружения.
 
@@ -58,7 +89,7 @@ class ServiceFactory:
             settings: Настройки приложения
 
         Returns:
-            Реализация SMS сервиса (заглушка или реальная)
+            Реализация SMS сервиса (заглушка, удаленная или реальная)
 
         Raises:
             ValueError: Если указан неизвестный тип сервиса
@@ -68,6 +99,10 @@ class ServiceFactory:
 
         if not sms_config or sms_config.type == "stub":
             return SmsServiceStub()
+        elif sms_config.type == "remote":
+            # Используем удаленный API NMservices
+            api_client = cls._get_api_client(settings)
+            return SmsServiceRemote(api_client=api_client)
         elif sms_config.type == "real":
             # TODO: Реализовать реальный SMS сервис
             # from nomus.infrastructure.services.sms_real import SmsServiceReal
@@ -79,8 +114,8 @@ class ServiceFactory:
         else:
             raise ValueError(f"Unknown SMS service type: {sms_config.type}")
 
-    @staticmethod
-    def create_payment_service(settings: Settings) -> Any:
+    @classmethod
+    def create_payment_service(cls, settings: Settings) -> Any:
         """
         Создает платежный сервис в зависимости от настроек окружения.
 
@@ -88,7 +123,7 @@ class ServiceFactory:
             settings: Настройки приложения
 
         Returns:
-            Реализация платежного сервиса (заглушка или реальная)
+            Реализация платежного сервиса (заглушка, удаленная или реальная)
 
         Raises:
             ValueError: Если указан неизвестный тип сервиса
@@ -98,6 +133,10 @@ class ServiceFactory:
 
         if not payment_config or payment_config.type == "stub":
             return PaymentServiceStub()
+        elif payment_config.type == "remote":
+            # Используем удаленный API NMservices
+            api_client = cls._get_api_client(settings)
+            return PaymentServiceRemote(api_client=api_client)
         elif payment_config.type == "real":
             # TODO: Реализовать реальный платежный сервис
             # from nomus.infrastructure.services.payment_real import PaymentServiceReal
@@ -122,9 +161,22 @@ class ServiceFactory:
             - storage: Хранилище данных
             - sms_service: SMS сервис
             - payment_service: Платежный сервис
+            - api_client: HTTP-клиент для удаленного API (если используется)
         """
         return {
             "storage": cls.create_storage(settings),
             "sms_service": cls.create_sms_service(settings),
             "payment_service": cls.create_payment_service(settings),
+            "api_client": cls._api_client,
         }
+
+    @classmethod
+    async def close_api_client(cls) -> None:
+        """
+        Закрывает HTTP-клиент для удаленного API.
+
+        Должен вызываться при завершении работы приложения.
+        """
+        if cls._api_client is not None:
+            await cls._api_client.close()
+            cls._api_client = None

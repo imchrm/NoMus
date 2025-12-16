@@ -12,6 +12,13 @@ env/
 htmlcov/
 .coverage
 
+# Файлы настроек для Claude AI code
+.claude/*
+!.claude/settings.json
+!.claude/CLAUDE.md
+!.claude/README.md
+
+
 # Файлы настроек IDE и редакторов
 .idea/
 .vscode/

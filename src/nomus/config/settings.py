@@ -28,9 +28,20 @@ class DatabaseConfig(BaseModel):
 class ServiceConfig(BaseModel):
     """Конфигурация внешнего сервиса"""
 
-    type: Literal["stub", "real"] = "stub"
+    type: Literal["stub", "real", "remote"] = "stub"
     provider: str = ""
     test_mode: bool = True
+
+
+class RemoteApiSettings(BaseModel):
+    """Конфигурация удаленного API (NMservices)"""
+
+    enabled: bool = False
+    base_url: str = "http://127.0.0.1:9800"
+    api_key: str = ""
+    timeout: float = 30.0
+    max_retries: int = 3
+    retry_delay: float = 1.0
 
 
 class LoggingConfig(BaseModel):
@@ -233,6 +244,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()
     services: Dict[str, ServiceConfig] = {}
+    remote_api: RemoteApiSettings = RemoteApiSettings()
     bot: BotConfig = BotConfig()
     api: ApiConfig = ApiConfig()
     monitoring: MonitoringConfig = MonitoringConfig()

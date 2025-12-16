@@ -7,12 +7,24 @@ logging:
 database:
   type: memory  # используем MemoryStorage
 
+# Сервисы: stub (локальные заглушки) или remote (NMservices API)
+# Для использования remote измените type на "remote" и настройте remote_api
 services:
   sms:
-    type: stub
+    type: stub  # stub | remote
   payment:
-    type: stub
+    type: stub  # stub | remote
     delay_seconds: 1
+
+# Конфигурация удаленного API NMservices
+# Используется когда services.*.type = "remote"
+remote_api:
+  enabled: false
+  base_url: "${REMOTE_API_BASE_URL}"
+  api_key: "${REMOTE_API_KEY}"
+  timeout: 30.0
+  max_retries: 3
+  retry_delay: 1.0
 
 bot:
   polling_timeout: 30
