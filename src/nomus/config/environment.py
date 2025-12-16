@@ -5,6 +5,7 @@ class Environment(str, Enum):
     """Перечисление доступных окружений приложения"""
 
     DEVELOPMENT = "development"
+    DEVELOPMENT_REMOTE = "development-remote"
     STAGING = "staging"
     PRODUCTION = "production"
 
@@ -15,3 +16,7 @@ class Environment(str, Enum):
             return cls(value.lower())
         except ValueError:
             return cls.DEVELOPMENT
+
+    def is_development(self) -> bool:
+        """Проверяет, является ли окружение development-типом"""
+        return self in (Environment.DEVELOPMENT, Environment.DEVELOPMENT_REMOTE)
