@@ -4,11 +4,11 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, User
 from nomus.config.settings import Settings
 from nomus.config.settings import Messages
-from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.domain.interfaces.repo_interface import IStorageRepository
 
 
 class L10nMiddleware(BaseMiddleware):
-    def __init__(self, settings: Settings, storage: MemoryStorage):
+    def __init__(self, settings: Settings, storage: IStorageRepository):
         self.settings = settings
         self.storage = storage
 
