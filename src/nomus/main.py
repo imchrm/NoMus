@@ -62,7 +62,6 @@ class BotApplication:
 
     def _register_routers(self):
         # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
-        # self.dp.include_router(t_common.router)
         self.dp.include_router(common.router)
         self.dp.include_router(registration.router)
         self.dp.include_router(ordering.router)
