@@ -42,7 +42,7 @@ async def _send_language_selection(message: Message):
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     await message.answer(
-        "Iltimos, tilingizni tanlang / Please select your language / Пожалуйста, выберите язык:",
+        BotUserProps.DEF_SELECT_LANG_PHRASE,
         reply_markup=keyboard,
     )
 
