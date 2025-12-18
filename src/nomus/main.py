@@ -11,8 +11,7 @@ from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
 from nomus.presentation.bot.handlers import (
     common,
     registration,
-    ordering,
-    language,
+    ordering
 )
 
 
@@ -65,9 +64,9 @@ class BotApplication:
         self.dp.include_router(common.router)
         self.dp.include_router(registration.router)
         self.dp.include_router(ordering.router)
-        self.dp.include_router(
-            language.router
-        )  # Этот роутер должен быть последним TODO: проверить это!
+        # self.dp.include_router(
+        #     language.router
+        # )  # Этот роутер должен быть последним TODO: проверить это!
 
     def _register_lifecycle_hooks(self):
         self.dp.startup.register(self.on_startup)
