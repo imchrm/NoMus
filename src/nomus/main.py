@@ -22,7 +22,7 @@ class BotApplication:
         self.log = self._setup_logging()
 
         self.log.info(
-            f"Starting NoMus in {settings.env.value.upper()} environment"
+            "Starting NoMus in %s environment", settings.env.value.upper()
         )
 
         # 1. Infrastructure Layer - используем фабрику
