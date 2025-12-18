@@ -21,20 +21,6 @@ router = Router()
 
 @router.message(TextEquals("registration_button"))
 async def start_registration(message: Message, state: FSMContext, lexicon: Messages):
-    # kb = [[KeyboardButton(text=lexicon.send_contact_button, request_contact=True)]]
-    # keyboard = ReplyKeyboardMarkup(
-    #     keyboard=kb, resize_keyboard=True, one_time_keyboard=True
-    # )
-
-    # prompt_text = lexicon.send_contact_prompt
-    # if prompt_text is None:
-    #     # It's error of configuration of lexicon. `send_contact_prompt` is undefined for current language.
-    #     raise ValueError(
-    #         "Missing translation for 'send_contact_prompt'. Check your lexicon configuration (configuration.yaml: messages)."
-    #     )
-
-    # await message.answer(prompt_text, reply_markup=keyboard)
-    # await state.set_state(RegistrationStates.waiting_for_phone)
 
     # Make a button for sharing location of current user
     kb = ReplyKeyboardMarkup(
