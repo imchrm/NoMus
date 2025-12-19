@@ -156,15 +156,40 @@ class IOrderRepository(ABC):
             KeyError: If order with given ID does not exist
         """
 
+class ICommittable(ABC):
+    """
+    Abstract base class for committing accumulated data.
+    Defines the contract for sending buffered data to a remote storage.
+    """
+
+    @abstractmethod
+    async def commit(self) -> None:
+        """
+        Commits accumulated changes to the underlying storage.
+        """
+
 class IStorageRepository(IUserRepository, IOrderRepository, ABC):
     """
     Combined storage repository interface.
-    
+
     Aggregates both user and order repository operations into a single
     storage abstraction. Implementations must provide both user and order
     management capabilities.
-    
+
     This interface is used by ServiceFactory to ensure consistent
     storage implementations across different environments (memory, PostgreSQL, etc.).
     """
+
+    async def flush(self) -> None:
+        """
+        Flushes any pending changes to the underlying storage.
+
+        For implementations that buffer changes (like RemoteStorage), this method
+        synchronizes all pending data with the remote storage.
+        For direct storage implementations (like MemoryStorage, PostgreSQL), this is a no-op.
+
+        This method should be called after completing a transaction or critical operation
+        (e.g., after user registration, after order completion).
+        """
+        pass  # Default implementation does nothing
     
