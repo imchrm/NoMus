@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from aiogram import Router, F
 from aiogram.filters import Command, CommandStart
 from aiogram.types import (
@@ -13,6 +14,7 @@ from aiogram.fsm.context import FSMContext
 from nomus.config.bot_user_properties import BotUserProps
 from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages, Settings
+from nomus.application.services.auth_service import AuthService
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -49,19 +51,98 @@ async def _send_language_selection(message: Message):
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, state: FSMContext, lexicon: Messages, storage: IUserRepository
+    message: Message,
+    state: FSMContext,
+    auth_service: AuthService,
+    storage: IUserRepository,
+    settings: Settings,
 ):
     await state.clear()
-    if message.from_user:
+
+    if not message.from_user:
+        return
+
+    # ===================================================================
+    # РЕЖИМ БЫСТРОГО СТАРТА ДЛЯ DEVELOPMENT (SKIP_REGISTRATION=True)
+    # ===================================================================
+    if settings.env.is_development() and settings.skip_registration:
+        log.warning("DEV MODE: SKIP_REGISTRATION is enabled, creating mock registered user")
+
+        # Создаём "фейкового" зарегистрированного пользователя
         await storage.save_or_update_user(
             telegram_id=message.from_user.id,
             data={
-                BotUserProps.DATA_USERNAME: message.from_user.username,
-                BotUserProps.DATA_FULL_NAME: message.from_user.full_name,
-                BotUserProps.DATA_LANGUAGE_CODE: BotUserProps.DEF_LANG_CODE,  # Устанавливаем язык по умолчанию
-            },
+                "username": message.from_user.username,
+                "full_name": message.from_user.full_name,
+                "language_code": "ru",
+                "phone_number": "+998901234567",  # MOCK номер
+                "registered_at": datetime.now().isoformat(),
+            }
         )
 
+        lexicon = settings.messages.ru
+        await message.answer(
+            lexicon.dev_mode_skip_registration,
+            reply_markup=get_start_kb(lexicon)
+        )
+        return
+
+    # ===================================================================
+    # ОБЫЧНЫЙ FLOW: Проверка регистрации
+    # ===================================================================
+
+    # Проверяем, есть ли пользователь в storage
+    user_data = await storage.get_user_by_telegram_id(message.from_user.id)
+
+    # ===================================================================
+    # ВЕТВЛЕНИЕ А: Зарегистрированный пользователь (есть телефон)
+    # ===================================================================
+    if user_data and user_data.get("phone_number"):
+        log.info("Registered user %s returned", message.from_user.id)
+
+        # Получаем язык пользователя
+        lang_code = await storage.get_user_language(message.from_user.id)
+        if not lang_code or lang_code not in ["uz", "ru", "en"]:
+            lang_code = "ru"  # Fallback
+
+        lexicon = getattr(settings.messages, lang_code)
+
+        # Приветствие "С возвращением!"
+        await message.answer(
+            lexicon.welcome_back,
+            reply_markup=get_start_kb(lexicon)
+        )
+        return
+
+    # ===================================================================
+    # ВЕТВЛЕНИЕ Б: Новый пользователь ИЛИ незарегистрированный
+    # ===================================================================
+    log.info("New or unregistered user %s", message.from_user.id)
+
+    # Определяем язык из Telegram API
+    lang_code = message.from_user.language_code
+    if lang_code not in ["uz", "ru", "en"]:
+        lang_code = "ru"  # Fallback на русский
+
+    # Создаём "черновик" пользователя с базовыми данными
+    await storage.save_or_update_user(
+        telegram_id=message.from_user.id,
+        data={
+            "username": message.from_user.username,
+            "full_name": message.from_user.full_name,
+            "language_code": lang_code,
+            # phone_number НЕ сохраняем - пользователь ещё не зарегистрирован
+        }
+    )
+
+    # Если язык определён из Telegram, показываем информационное сообщение
+    if message.from_user.language_code in ["uz", "ru", "en"]:
+        lexicon = getattr(settings.messages, lang_code)
+        await message.answer(
+            lexicon.language_detected.format(lang_code=lang_code.upper())
+        )
+
+    # Показываем выбор языка
     await _send_language_selection(message)
 
 

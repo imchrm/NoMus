@@ -6,6 +6,9 @@ version: "0.3.2"
 messages:
   uz:
     welcome: "NoMusga xush kelibsiz! Iltimos, harakatni tanlang:"
+    welcome_back: "Qaytganingizdan xursandmiz! 👋"
+    language_detected: "Telegram tilidan til aniqlandi: {lang_code}"
+    dev_mode_skip_registration: "🔧 DEV MODE: Ro'yxatdan o'tish o'tkazib yuborildi"
     error: "Xatolik yuz berdi."
     language_changed_prompt: "Til o'zgartirildi."
     confirm_phone_button: "Raqamimni tasdiqlang"
@@ -39,6 +42,9 @@ messages:
     order_status: "Buyurtma holati: Qayta ishlanmoqda"
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
+    welcome_back: "Welcome back! 👋"
+    language_detected: "Language detected from Telegram: {lang_code}"
+    dev_mode_skip_registration: "🔧 DEV MODE: Registration skipped"
     error: "An error occurred."
     language_changed_prompt: "Language changed."
     confirm_phone_button: "Confirm my number"
@@ -72,6 +78,9 @@ messages:
     order_status: "Order status: Processing"
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
+    welcome_back: "С возвращением! 👋"
+    language_detected: "Язык определён из Telegram: {lang_code}"
+    dev_mode_skip_registration: "🔧 DEV MODE: Регистрация пропущена"
     error: "Произошла ошибка."
     language_changed_prompt: "Язык изменен."
     confirm_phone_button: "Подтвердить мой номер"
