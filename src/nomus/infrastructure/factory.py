@@ -30,8 +30,8 @@ class ServiceFactory:
 
     _api_client: Optional[RemoteApiClient] = None
 
-    @staticmethod
-    def create_storage(settings: Settings) -> IStorageRepository:
+    @classmethod
+    def create_storage(cls, settings: Settings) -> IStorageRepository:
         """
         Создает хранилище данных в зависимости от типа БД в настройках.
 
@@ -46,7 +46,25 @@ class ServiceFactory:
             NotImplementedError: Если реализация для типа БД еще не готова
         """
         if settings.database.type == StorageConstants.DB_MEMORY_TYPE:
-            return MemoryStorage()
+            # Проверяем, используется ли remote API для сервисов
+            # Если да, то используем RemoteStorage вместо MemoryStorage
+            sms_config = settings.services.get("sms")
+            payment_config = settings.services.get("payment")
+
+            uses_remote_services = (
+                (sms_config and sms_config.type == "remote") or
+                (payment_config and payment_config.type == "remote")
+            )
+
+            if uses_remote_services and settings.remote_api.enabled:
+                # Используем RemoteStorage с локальным кешем
+                from nomus.infrastructure.database.remote_storage import RemoteStorage
+                api_client = cls._get_api_client(settings)
+                return RemoteStorage(api_client=api_client)
+            else:
+                # Обычный MemoryStorage для полностью локальной разработки
+                return MemoryStorage()
+
         elif settings.database.type == StorageConstants.DB_POSTGRES_TYPE:
             #TODO: Реализовать PostgresStorage
             # from nomus.infrastructure.database.postgres_storage import PostgresStorage

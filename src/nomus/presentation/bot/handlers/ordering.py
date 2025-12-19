@@ -112,6 +112,7 @@ async def process_payment(
     callback: CallbackQuery,
     state: FSMContext,
     order_service: OrderService,
+    storage: IUserRepository,
     lexicon: Messages,
 ):
     # Assert that the message is an accessible `Message` object, not `InaccessibleMessage`.
@@ -130,6 +131,10 @@ async def process_payment(
         user_id=user_id, tariff=data["tariff"], amount=data["amount"]
     )
     order_id = uuid.uuid4()  # TODO: replace with real order id
+
+    # Синхронизируем данные с remote storage (если используется)
+    await storage.flush()
+
     if success:
         await callback.message.delete()
         await callback.message.answer(

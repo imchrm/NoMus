@@ -136,6 +136,9 @@ async def process_code(
                 message.from_user.id, user_data
             )
 
+            # Синхронизируем данные с remote storage (если используется)
+            await storage.flush()
+
             await message.answer(lexicon.registration_successful)
 
             # Get user language from storage
