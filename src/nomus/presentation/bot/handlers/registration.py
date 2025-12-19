@@ -8,7 +8,7 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from nomus.domain.entities.user import User
-from nomus.domain.interfaces.repo_interface import IUserRepository
+from nomus.domain.interfaces.repo_interface import IStorageRepository, IUserRepository
 from nomus.presentation.bot.states.registration import RegistrationStates
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
@@ -96,7 +96,7 @@ async def process_code(
     state: FSMContext,
     auth_service: AuthService,
     order_service: OrderService,
-    storage: IUserRepository,
+    storage: IStorageRepository,
     lexicon: Messages,
 ):
     if not message.from_user:

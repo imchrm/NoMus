@@ -77,6 +77,9 @@ class Messages(BaseModel):
     """Сообщения для локализации"""
 
     welcome: str = ""
+    welcome_back: str = ""
+    language_detected: str = ""
+    dev_mode_skip_registration: str = ""
     error: str = ""
     language_changed_prompt: str = ""
     confirm_phone_button: str = ""
@@ -239,6 +242,9 @@ class Settings(BaseSettings):
 
     # Monitoring (from .env)
     sentry_dsn: str = ""
+
+    # Development mode options (from .env)
+    skip_registration: bool = False
 
     # Environment-specific configs (from yaml files)
     database: DatabaseConfig = DatabaseConfig()

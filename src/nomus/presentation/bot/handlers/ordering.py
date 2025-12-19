@@ -14,7 +14,7 @@ from aiogram.fsm.context import FSMContext
 from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
-from nomus.domain.interfaces.repo_interface import IUserRepository
+from nomus.domain.interfaces.repo_interface import IStorageRepository, IUserRepository
 from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 
@@ -112,7 +112,7 @@ async def process_payment(
     callback: CallbackQuery,
     state: FSMContext,
     order_service: OrderService,
-    storage: IUserRepository,
+    storage: IStorageRepository,
     lexicon: Messages,
 ):
     # Assert that the message is an accessible `Message` object, not `InaccessibleMessage`.
