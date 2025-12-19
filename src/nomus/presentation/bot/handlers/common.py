@@ -21,11 +21,22 @@ log: logging.Logger = logging.getLogger(__name__)
 router = Router()
 
 
-def get_start_kb(lexicon: Messages) -> ReplyKeyboardMarkup:
-    kb = [
-        [KeyboardButton(text=lexicon.registration_button)],
-        [KeyboardButton(text=lexicon.start_ordering_button)],
-    ]
+def get_start_kb(lexicon: Messages, show_registration: bool = True) -> ReplyKeyboardMarkup:
+    """
+    Создаёт главную клавиатуру.
+
+    Args:
+        lexicon: Сообщения локализации
+        show_registration: Показывать ли кнопку "Регистрация" (по умолчанию True)
+                          False для уже зарегистрированных пользователей
+    """
+    kb = []
+
+    if show_registration:
+        kb.append([KeyboardButton(text=lexicon.registration_button)])
+
+    kb.append([KeyboardButton(text=lexicon.start_ordering_button)])
+
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
@@ -83,7 +94,7 @@ async def cmd_start(
         lexicon = settings.messages.ru
         await message.answer(
             lexicon.dev_mode_skip_registration,
-            reply_markup=get_start_kb(lexicon)
+            reply_markup=get_start_kb(lexicon, show_registration=False)
         )
         return
 
@@ -110,7 +121,7 @@ async def cmd_start(
         # Приветствие "С возвращением!"
         await message.answer(
             lexicon.welcome_back,
-            reply_markup=get_start_kb(lexicon)
+            reply_markup=get_start_kb(lexicon, show_registration=False)
         )
         return
 
@@ -148,11 +159,26 @@ async def cmd_start(
 
 # @router.message(LexiconFilter('cancel_button'))
 @router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext, lexicon: Messages):
-    # ...
-
+async def cmd_cancel(
+    message: Message,
+    state: FSMContext,
+    auth_service: AuthService,
+    lexicon: Messages
+):
+    """Отменяет текущее действие и возвращает в главное меню."""
     await state.clear()
-    await message.answer(lexicon.cancel_button, reply_markup=get_start_kb(lexicon))
+
+    if not message.from_user:
+        await message.answer(lexicon.cancel_button, reply_markup=get_start_kb(lexicon))
+        return
+
+    # Проверяем, зарегистрирован ли пользователь
+    is_registered = await auth_service.is_user_registered(message.from_user.id)
+
+    await message.answer(
+        lexicon.cancel_button,
+        reply_markup=get_start_kb(lexicon, show_registration=not is_registered)
+    )
 
 
 @router.message(Command("language"))
