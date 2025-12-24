@@ -120,6 +120,9 @@ async def process_code(
         longitude = data.get("longitude")
 
         if phone:
+            # Регистрируем пользователя через AuthService и получаем server_user_id
+            server_user_id = await auth_service.register_user(phone)
+
             user_data = User(
                 id=message.from_user.id,
                 telegram_id=message.from_user.id,
@@ -127,11 +130,10 @@ async def process_code(
                 registered_at=datetime.now(),
                 latitude=latitude,
                 longitude=longitude,
+                server_user_id=server_user_id,  # Сохраняем ID с сервера NMservices
             ).model_dump()  # Преобразуем Pydantic модель в словарь для сохранения
 
-            # Теперь мы не создаем нового пользователя, а обновляем существующего,
-            # добавляя номер телефона и другие данные.
-            # Метод register_user в auth_service должен использовать save_or_update_user.
+            # Обновляем пользователя в локальном хранилище
             await auth_service.user_repo.save_or_update_user(
                 message.from_user.id, user_data
             )

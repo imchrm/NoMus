@@ -10,3 +10,4 @@ class User(BaseModel):
     registered_at: datetime
     latitude: float | None = None
     longitude: float | None = None
+    server_user_id: int | None = None  # ID пользователя на сервере NMservices
