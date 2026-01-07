@@ -7,6 +7,7 @@
 *   `[Presentation]` - Слой представления (Handlers, States)
 *   `[Application]` - Слой приложения (Services)
 *   `[Infrastructure]` - Слой инфраструктуры (Repositories, External APIs)
+*   `[Remote]` - Взаимодействие с внешним API (NMservices / PostgreSQL backend)
 *   `->` - Передача управления (вызов функции, отправка сообщения, переход состояния)
 
 ---
@@ -86,7 +87,8 @@
 8.  `->` **registration.process_phone** (Handler)
     *   `->` `FSMContext.update_data` (Временное сохранение телефона)
     *   `->` **AuthService.send_verification_code** (Application Service)
-        *   `->` **SmsServiceStub.send** (Infrastructure)
+        *   `->` **SmsServiceRemote.send_sms** (Infrastructure)
+            *   `->` **POST /users/register** (Remote API) — Первичная инициализация пользователя на сервере
     *   `->` `Message.answer` ("Код подтверждения отправлен...", удаление клавиатуры)
     *   `->` `FSMContext.set_state(RegistrationStates.waiting_for_sms_code)`
 9.  `->` **User** (вводит код "1234")
@@ -94,11 +96,19 @@
 10. **Router** (ловит текст в состоянии `waiting_for_sms_code`)
 11. `->` **registration.process_code** (Handler)
     *   `->` Проверка формата кода и соответствия "1234"
-    *   `->` Создание сущности **User** (сбор всех закэшированных данных: язык, geo, phone)
-    *   `->` **AuthService.user_repo.save_or_update_user** (Infrastructure / Repo - **Финальная отправка и сохранение данных на сервер**)
+    *   `->` **AuthService.register_user** (Application Service)
+        *   `->` **SmsServiceRemote.send_sms** (Infrastructure)
+            *   `->` **POST /users/register** (Remote API) — Повторный вызов/верификация
+            *   `->` Получение `user_id` от сервера (server_id)
+        *   `->` Возврат `server_user_id`
+    *   `->` Создание сущности **User** (сбор данных: `phone`, `geo`, `server_user_id`)
+    *   `->` **IUserRepository.save_or_update_user** (Infrastructure / RemoteStorage)
+        *   `->` Сохранение в локальный кеш (MemoryStorage)
+    *   `->` **RemoteStorage.flush** (Infrastructure)
+        *   `->` Синхронизация всех изменений ("dirty" records) с удаленным сервером (через `RemoteApiClient`)
     *   `->` `Message.answer` ("Регистрация успешно завершена!")
     *   **Переход к заказу:**
-        *   `->` **MemoryStorage.get_user_language** (Или получение из контекста)
+        *   `->` **RemoteStorage.get_user_language** (Из кеша)
         *   `->` **ordering._start_tariff_selection** (Вспомогательная функция)
             *   `->` **OrderService.get_tariffs** (Application Service)
             *   `->` `FSMContext.update_data` (Сохранение тарифов)
@@ -121,9 +131,10 @@
 6.  `->` **ordering.process_payment** (Handler)
     *   `->` `CallbackQuery.message.edit_text` ("Обработка платежа...")
     *   `->` **OrderService.create_order** (Application Service)
-        *   `->` **PaymentServiceStub.process_payment** (Simulation)
+        *   `->` **PaymentServiceRemote** (или Stub)
         *   `->` Если успех:
-            *   `->` **MemoryStorage.save_order** (Repo)
+            *   `->` **RemoteStorage.save_or_update_order** (Repo) — Сохранение в кеш
+            *   `->` **RemoteStorage.flush** — Синхронизация заказа с сервером
             *   `->` Возврат `True`
     *   `->` `CallbackQuery.message.delete()`
     *   `->` `CallbackQuery.message.answer` ("Заказ успешно оплачен и создан!", удаление клавиатуры)
