@@ -7,6 +7,7 @@ from typing import Any, Optional
 from nomus.config.settings import StorageConstants, Settings
 from nomus.domain.interfaces.repo_interface import IStorageRepository
 from nomus.infrastructure.database.memory_storage import MemoryStorage
+from nomus.infrastructure.database.remote_storage import RemoteStorage
 from nomus.infrastructure.services.sms_stub import SmsServiceStub
 from nomus.infrastructure.services.payment_stub import PaymentServiceStub
 from nomus.infrastructure.services.remote_api_client import (
@@ -58,7 +59,6 @@ class ServiceFactory:
 
             if uses_remote_services and settings.remote_api.enabled:
                 # Используем RemoteStorage с локальным кешем
-                from nomus.infrastructure.database.remote_storage import RemoteStorage
                 api_client = cls._get_api_client(settings)
                 return RemoteStorage(api_client=api_client)
             else:
@@ -122,7 +122,7 @@ class ServiceFactory:
             api_client = cls._get_api_client(settings)
             return SmsServiceRemote(api_client=api_client)
         elif sms_config.type == "real":
-            # TODO: Реализовать реальный SMS сервис
+            #TODO: Реализовать реальный SMS сервис
             # from nomus.infrastructure.services.sms_real import SmsServiceReal
             # return SmsServiceReal(sms_config)
             raise NotImplementedError(
@@ -156,7 +156,7 @@ class ServiceFactory:
             api_client = cls._get_api_client(settings)
             return PaymentServiceRemote(api_client=api_client)
         elif payment_config.type == "real":
-            # TODO: Реализовать реальный платежный сервис
+            #TODO: Реализовать реальный платежный сервис
             # from nomus.infrastructure.services.payment_real import PaymentServiceReal
             # return PaymentServiceReal(payment_config)
             raise NotImplementedError(

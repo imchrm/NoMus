@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Set
 from nomus.domain.interfaces.repo_interface import IStorageRepository
 from nomus.infrastructure.database.memory_storage import MemoryStorage
-from nomus.infrastructure.services.remote_api_client import RemoteApiClient
+from nomus.infrastructure.services.remote_api_client import RemoteApiClient, RemoteApiError
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -39,8 +39,24 @@ class RemoteStorage(IStorageRepository):
         return await self._cache.get_user_by_phone(phone)
 
     async def get_user_by_telegram_id(self, telegram_id: int) -> Dict[str, Any] | None:
-        """Получает пользователя из кеша по telegram_id"""
-        return await self._cache.get_user_by_telegram_id(telegram_id)
+        """Получает пользователя из кеша или remote API (Read-Through)"""
+        # 1. Проверяем кеш
+        user = await self._cache.get_user_by_telegram_id(telegram_id)
+        if user:
+            return user
+
+        # 2. Если нет в кеше, пробуем загрузить с сервера
+        try:
+            user = await self._api_client.get(f"/users/{telegram_id}")
+            if user:
+                # Сохраняем в кеш, но не помечаем как dirty (данные свежие)
+                await self._cache.save_or_update_user(telegram_id, user)
+                log.debug("User %s loaded from remote API", telegram_id)
+                return user
+        except RemoteApiError as e:
+            log.warning("Failed to load user %s from remote: %s", telegram_id, e)
+
+        return None
 
     async def get_user_language(self, telegram_id: int) -> str | None:
         """Получает язык пользователя из кеша"""
@@ -115,7 +131,7 @@ class RemoteStorage(IStorageRepository):
                 try:
                     await self._api_client.post("/users/register", user_data)
                     log.debug("User %s synced to remote API", telegram_id)
-                except Exception as e:
+                except RemoteApiError as e:
                     log.error("Failed to sync user %s: %s", telegram_id, e)
                     # TODO: решить, что делать с ошибками (retry, rollback, etc.)
 
@@ -126,7 +142,7 @@ class RemoteStorage(IStorageRepository):
                 try:
                     await self._api_client.post("/orders", order_data)
                     log.debug("Order %s synced to remote API", order_id)
-                except Exception as e:
+                except RemoteApiError as e:
                     log.error("Failed to sync order %s: %s", order_id, e)
 
         # Очищаем dirty sets

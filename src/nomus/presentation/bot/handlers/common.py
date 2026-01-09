@@ -28,7 +28,7 @@ def get_start_kb(lexicon: Messages, show_registration: bool = True) -> ReplyKeyb
     Args:
         lexicon: Сообщения локализации
         show_registration: Показывать ли кнопку "Регистрация" (по умолчанию True)
-                          False для уже зарегистрированных пользователей
+            False для уже зарегистрированных пользователей
     """
     kb = []
 

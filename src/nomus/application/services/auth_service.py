@@ -41,4 +41,4 @@ class AuthService:
         if not user_data:
             return False
         # The presence of a phone number indicates that the user has completed registration.
-        return "phone_number" in user_data and user_data.get("phone_number") is not None
+        return user_data.get("phone_number") is not None
