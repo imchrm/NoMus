@@ -25,8 +25,8 @@ services:
 # Конфигурация удаленного API NMservices
 remote_api:
   enabled: true
-  base_url: "${REMOTE_API_BASE_URL}"  # http://94.158.50.119:9800
-  api_key: "${REMOTE_API_KEY}"         # troxivasine23
+  base_url: "${REMOTE_API_BASE_URL}"  # Устанавливается через переменную окружения
+  api_key: "${REMOTE_API_KEY}"        # Устанавливается через переменную окружения
   timeout: 30.0
   max_retries: 3
   retry_delay: 1.0

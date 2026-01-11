@@ -8,6 +8,7 @@ This script simulates the registration process and verifies:
 """
 
 import asyncio
+import os
 from datetime import datetime
 
 from nomus.domain.entities.user import User
@@ -81,8 +82,8 @@ async def test_registration_with_remote():
     print("=" * 60)
 
     config = RemoteApiConfig(
-        base_url="http://94.158.50.119:9800",
-        api_key="troxivasine23",
+        base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+        api_key=os.getenv("REMOTE_API_KEY", "test_key"),
         timeout=10.0,
         max_retries=2,
     )
@@ -160,8 +161,8 @@ async def test_full_flow_comparison():
 
     print("\n[REMOTE] Creating SMS service...")
     config = RemoteApiConfig(
-        base_url="http://94.158.50.119:9800",
-        api_key="troxivasine23",
+        base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+        api_key=os.getenv("REMOTE_API_KEY", "test_key"),
         timeout=10.0,
     )
     remote_sms = SmsServiceRemote(config=config)
