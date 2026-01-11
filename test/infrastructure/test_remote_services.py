@@ -1,6 +1,12 @@
 """
 Тесты для удаленных сервисов NMservices.
 
+Конфигурация:
+    Настройте переменные окружения в .env:
+        TEST_REMOTE_API_IP=your_server_ip
+        TEST_REMOTE_API_PORT=your_server_port
+        TEST_REMOTE_API_PASSWORD=your_api_password
+
 Для запуска тестов с реальным сервером:
     pytest test/infrastructure/test_remote_services.py -v
 
@@ -9,6 +15,9 @@
 
 Для быстрой проверки без pytest:
     poetry run python test/infrastructure/test_remote_services.py
+
+Переопределение через аргументы командной строки:
+    poetry run python test/infrastructure/test_remote_services.py --ip 192.168.1.100 --port 8080 --password mypass
 """
 
 import asyncio
@@ -66,9 +75,21 @@ from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
 
 # Парсинг аргументов для возможности переопределения настроек
 parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument("--ip", default="94.158.50.119")
-parser.add_argument("--port", default="9800")
-parser.add_argument("--password", default="troxivasine23")
+parser.add_argument(
+    "--ip",
+    default=os.getenv("TEST_REMOTE_API_IP", "localhost"),
+    help="IP address of the test server",
+)
+parser.add_argument(
+    "--port",
+    default=os.getenv("TEST_REMOTE_API_PORT", "9800"),
+    help="Port of the test server",
+)
+parser.add_argument(
+    "--password",
+    default=os.getenv("TEST_REMOTE_API_PASSWORD", ""),
+    help="API password for the test server",
+)
 
 args, _ = parser.parse_known_args()
 
@@ -82,7 +103,6 @@ TEST_CONFIG = RemoteApiConfig(
 )
 
 INVALID_CONFIG = RemoteApiConfig(
-    base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
     base_url=f"http://{args.ip}:{args.port}",
     api_key="wrong_key",
     timeout=5.0,
