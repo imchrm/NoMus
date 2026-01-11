@@ -8,6 +8,7 @@
 """
 
 import asyncio
+import os
 from datetime import datetime
 
 # Импортируем необходимые компоненты
@@ -88,10 +89,10 @@ async def test_registration_with_remote():
     print("ТЕСТ 2: Регистрация в REMOTE-режиме")
     print("=" * 60)
 
-    # Настройка
+    # Настройка из переменных окружения
     config = RemoteApiConfig(
-        base_url="http://94.158.50.119:9800",
-        api_key="troxivasine23",
+        base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+        api_key=os.getenv("REMOTE_API_KEY", "test_key"),
         timeout=10.0,
         max_retries=2,
     )
@@ -177,8 +178,8 @@ async def test_full_flow_comparison():
     # Remote режим
     print("\n[REMOTE] Создание SMS сервиса...")
     config = RemoteApiConfig(
-        base_url="http://94.158.50.119:9800",
-        api_key="troxivasine23",
+        base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+        api_key=os.getenv("REMOTE_API_KEY", "test_key"),
         timeout=10.0,
     )
     remote_sms = SmsServiceRemote(config=config)

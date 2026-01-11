@@ -50,6 +50,8 @@ except ImportError:
             return _raises()
 
 
+import os
+
 from nomus.infrastructure.services.remote_api_client import (
     RemoteApiClient,
     RemoteApiConfig,
@@ -60,17 +62,17 @@ from nomus.infrastructure.services.sms_remote import SmsServiceRemote
 from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
 
 
-# Конфигурация для тестов
+# Конфигурация для тестов из переменных окружения
 TEST_CONFIG = RemoteApiConfig(
-    base_url="http://94.158.50.119:9800",
-    api_key="troxivasine23",
+    base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+    api_key=os.getenv("REMOTE_API_KEY", "test_key"),
     timeout=10.0,
     max_retries=2,
     retry_delay=0.5,
 )
 
 INVALID_CONFIG = RemoteApiConfig(
-    base_url="http://94.158.50.119:9800",
+    base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
     api_key="wrong_key",
     timeout=5.0,
 )
