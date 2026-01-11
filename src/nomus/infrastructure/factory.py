@@ -16,6 +16,7 @@ from nomus.infrastructure.services.remote_api_client import (
 )
 from nomus.infrastructure.services.sms_remote import SmsServiceRemote
 from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
+from nomus.infrastructure.database.remote_storage import RemoteStorage
 
 
 class ServiceFactory:
@@ -67,12 +68,12 @@ class ServiceFactory:
 
         elif settings.database.type == StorageConstants.DB_POSTGRES_TYPE:
             #TODO: Реализовать PostgresStorage
-            # from nomus.infrastructure.database.postgres_storage import PostgresStorage
-            # return PostgresStorage(settings.database)
-            raise NotImplementedError(
-                "PostgreSQL storage not implemented yet. "
-                "Use 'StorageConstants.DB_MEMORY_TYPE' type for development."
-            )
+            return RemoteStorage(api_client=cls._get_api_client(settings))
+
+            # raise NotImplementedError(
+            #     "PostgreSQL storage not implemented yet. "
+            #     "Use 'StorageConstants.DB_MEMORY_TYPE' type for development."
+            # )
         else:
             raise ValueError(f"Unknown database type: {settings.database.type}")
 

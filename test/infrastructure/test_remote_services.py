@@ -12,6 +12,7 @@
 """
 
 import asyncio
+import argparse
 
 # pytest опционален для прямого запуска скрипта
 try:
@@ -31,7 +32,7 @@ except ImportError:
         def asyncio(f):
             return f
 
-    class pytest:  # type: ignore[no-redef]
+    class _MockPytest:
         mark = _MockMark()
 
         @staticmethod
@@ -49,6 +50,8 @@ except ImportError:
 
             return _raises()
 
+    pytest = _MockPytest  # type: ignore
+
 
 import os
 
@@ -56,16 +59,23 @@ from nomus.infrastructure.services.remote_api_client import (
     RemoteApiClient,
     RemoteApiConfig,
     RemoteApiAuthError,
-    RemoteApiConnectionError,
 )
 from nomus.infrastructure.services.sms_remote import SmsServiceRemote
 from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
 
 
-# Конфигурация для тестов из переменных окружения
+# Парсинг аргументов для возможности переопределения настроек
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument("--ip", default="94.158.50.119")
+parser.add_argument("--port", default="9800")
+parser.add_argument("--password", default="troxivasine23")
+
+args, _ = parser.parse_known_args()
+
+# Конфигурация для тестов
 TEST_CONFIG = RemoteApiConfig(
-    base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
-    api_key=os.getenv("REMOTE_API_KEY", "test_key"),
+    base_url=f"http://{args.ip}:{args.port}",
+    api_key=args.password,
     timeout=10.0,
     max_retries=2,
     retry_delay=0.5,
@@ -73,6 +83,7 @@ TEST_CONFIG = RemoteApiConfig(
 
 INVALID_CONFIG = RemoteApiConfig(
     base_url=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+    base_url=f"http://{args.ip}:{args.port}",
     api_key="wrong_key",
     timeout=5.0,
 )
@@ -216,7 +227,7 @@ class TestIntegrationFlow:
             assert order_result is True
             assert payment_service.last_order_id is not None
 
-            print(f"\n[OK] Full flow completed:")
+            print("\n[OK] Full flow completed:")
             print(f"   User ID: {user_id}")
             print(f"   Order ID: {payment_service.last_order_id}")
 
