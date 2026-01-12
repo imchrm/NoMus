@@ -230,10 +230,6 @@ class Settings(BaseSettings):
     # Secret variables (from .env)
     debug: bool = False
     bot_token: str = ""
-    api_key: str = ""
-    api_secret: str = ""
-    api_password: str = ""
-    api_url: str = ""
 
     # Database credentials (from .env)
     db_host: str = ""
