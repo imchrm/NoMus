@@ -9,10 +9,8 @@ sys.path.insert(0, src_path)
 
 # Set environment variables to simulate .env file
 os.environ["DEBUG"] = "True"
-os.environ["API_KEY"] = "test_key"
-os.environ["API_SECRET"] = "test_secret"
-os.environ["API_PASSWORD"] = "test_password"
-os.environ["API_URL"] = "http://localhost:8000"
+os.environ["REMOTE_API_BASE_URL"] = "http://localhost:9800"
+os.environ["REMOTE_API_KEY"] = "test_key"
 
 try:
     from nomus.config.settings import Settings
@@ -21,8 +19,8 @@ try:
     print("Settings loaded successfully:")
     print(f"Bot Token: {settings.bot_token}")
     print(f"Debug: {settings.debug}")
-    print(f"API Key: {settings.api_key}")
-    print(f"API URL: {settings.api_url}")
+    print(f"Remote API Base URL: {settings.remote_api.base_url}")
+    print(f"Remote API Key: {settings.remote_api.api_key}")
     if settings.messages:
         print(f"English Welcome: {settings.messages.en.welcome}")
         print(f"Russian Welcome: {settings.messages.ru.welcome}")
