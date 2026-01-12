@@ -3,9 +3,8 @@
 
 Конфигурация:
     Настройте переменные окружения в .env:
-        TEST_REMOTE_API_IP=your_server_ip
-        TEST_REMOTE_API_PORT=your_server_port
-        TEST_REMOTE_API_PASSWORD=your_api_password
+        REMOTE_API_BASE_URL=http://your-server:port
+        REMOTE_API_KEY=your_api_key
 
 Для запуска тестов с реальным сервером:
     pytest test/infrastructure/test_remote_services.py -v
@@ -17,7 +16,7 @@
     poetry run python test/infrastructure/test_remote_services.py
 
 Переопределение через аргументы командной строки:
-    poetry run python test/infrastructure/test_remote_services.py --ip 192.168.1.100 --port 8080 --password mypass
+    poetry run python test/infrastructure/test_remote_services.py --base-url http://192.168.1.100:8080 --api-key mypass
 """
 
 import asyncio
@@ -76,34 +75,29 @@ from nomus.infrastructure.services.payment_remote import PaymentServiceRemote
 # Парсинг аргументов для возможности переопределения настроек
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument(
-    "--ip",
-    default=os.getenv("TEST_REMOTE_API_IP", "localhost"),
-    help="IP address of the test server",
+    "--base-url",
+    default=os.getenv("REMOTE_API_BASE_URL", "http://localhost:9800"),
+    help="Base URL of the remote API server",
 )
 parser.add_argument(
-    "--port",
-    default=os.getenv("TEST_REMOTE_API_PORT", "9800"),
-    help="Port of the test server",
-)
-parser.add_argument(
-    "--password",
-    default=os.getenv("TEST_REMOTE_API_PASSWORD", ""),
-    help="API password for the test server",
+    "--api-key",
+    default=os.getenv("REMOTE_API_KEY", ""),
+    help="API key for authentication",
 )
 
 args, _ = parser.parse_known_args()
 
 # Конфигурация для тестов
 TEST_CONFIG = RemoteApiConfig(
-    base_url=f"http://{args.ip}:{args.port}",
-    api_key=args.password,
+    base_url=args.base_url,
+    api_key=args.api_key,
     timeout=10.0,
     max_retries=2,
     retry_delay=0.5,
 )
 
 INVALID_CONFIG = RemoteApiConfig(
-    base_url=f"http://{args.ip}:{args.port}",
+    base_url=args.base_url,
     api_key="wrong_key",
     timeout=5.0,
 )
