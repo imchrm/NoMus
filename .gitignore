@@ -18,6 +18,9 @@ htmlcov/
 !.claude/CLAUDE.md
 !.claude/README.md
 
+# Временные файлы Claude Code
+tmpclaude-*-cwd
+
 
 # Файлы настроек IDE и редакторов
 .idea/

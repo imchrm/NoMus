@@ -5,12 +5,7 @@ logging:
   format: "%(asctime)s - %(levelname)s - %(message)s"
 
 database:
-  type: postgres
-  host: "${DB_HOST}"
-  port: 5432
-  name: "nomus_production"
-  pool_size: 20
-  max_overflow: 10
+  type: memory  # Bot uses in-memory cache; actual DB is in NMservices
 
 services:
   sms:

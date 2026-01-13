@@ -1,145 +1,324 @@
 # NoMus
 
-Project for providing services to the population.
+**Telegram-бот для заказа услуг населению**
 
-## Structure
+NoMus — это Telegram-бот на базе aiogram 3.x, интегрированный с backend-системой NMservices для обработки регистрации пользователей и создания заказов.
 
-The project follows the `src` layout structure:
+---
 
-```text
-NoMus/
-├── src/
-│   └── nomus/          # Main package
-│       ├── main.py     # Entry point
-│       └── ...
-├── pyproject.toml
-└── ...
+## 🏗️ Архитектура
+
+### Компоненты экосистемы
+
+```
+┌──────────────────────────────────────┐
+│ NoMus Bot (Telegram)                 │
+│  ├─ MemoryStorage (FSM cache)        │ ← Временный кеш для регистрации
+│  └─ RemoteApiClient                  │ ← HTTP клиент для NMservices
+│     ├─ POST /users/register          │
+│     └─ POST /orders                  │
+└──────────────────────────────────────┘
+            ↓ HTTP POST
+┌──────────────────────────────────────┐
+│ NMservices (Backend)                 │
+│  ├─ FastAPI + uvicorn                │
+│  └─ PostgreSQL Database              │ ← Основная база данных
+│     ├─ users table                   │
+│     └─ orders table                  │
+└──────────────────────────────────────┘
 ```
 
-## Clone
+### Ключевые особенности
+
+- **NoMus Bot** - Telegram-бот (aiogram 3.x) для взаимодействия с пользователями
+- **NMservices** - Backend сервер (FastAPI + PostgreSQL) для обработки данных
+- **MemoryStorage** - Локальный кеш для FSM states и промежуточных данных регистрации
+- **RemoteApiClient** - HTTP клиент для интеграции с NMservices API
+
+**Важно**: Бот **НЕ подключается к PostgreSQL напрямую**. Вся работа с базой данных происходит через REST API NMservices.
+
+---
+
+## 📁 Структура проекта
+
+```
+NoMus/
+├── config/
+│   ├── environments/          # Конфигурации окружений
+│   │   ├── development.yaml
+│   │   ├── development-remote.yaml
+│   │   ├── staging.yaml
+│   │   └── production.yaml
+│   └── localization/          # Локализация (ru, uz, en)
+│       └── messages.yaml
+│
+├── docs/                      # Документация
+│   ├── bot_flow.md           # Детальный поток работы бота
+│   ├── DDD_Analysis.md       # Анализ DDD архитектуры
+│   ├── QUICKSTART_DB_TESTING.md  # Быстрый старт для отладки
+│   └── TEST_RESULTS.md       # Результаты тестирования API
+│
+├── scripts/                   # Скрипты запуска
+│
+├── src/nomus/                 # Основной код
+│   ├── main.py               # Точка входа
+│   ├── config/               # Конфигурация
+│   ├── domain/               # Доменный слой (entities, interfaces)
+│   ├── application/          # Бизнес-логика (services)
+│   ├── infrastructure/       # Внешние сервисы (API, DB)
+│   └── presentation/         # Telegram bot handlers
+│
+├── tests/                     # Тесты
+│   ├── manual/               # Ручные тесты
+│   │   ├── test_api_connection.py
+│   │   ├── test_env_check.py
+│   │   └── test_settings_load.py
+│   └── ...                   # Юнит-тесты
+│
+├── .env.example              # Шаблон конфигурации
+├── pyproject.toml            # Зависимости (Poetry)
+└── CLAUDE.md                 # Полная документация для разработки
+```
+
+---
+
+## 🚀 Быстрый старт
+
+### 1. Клонирование репозитория
 
 ```bash
 git clone https://github.com/imchrm/NoMus.git
 cd NoMus
 ```
 
-## Install Poetry
+### 2. Установка Poetry
 
-Official installation [guide](https://python-poetry.org/docs/#installation).
+Официальный [гайд по установке](https://python-poetry.org/docs/#installation).
 
-## Setup Dependencies of Project
-
-1. Make sure you're inside your "NoMus" project.
-2. To install the virtual environment specifically within your project, rather than in a single location for all project environments, run the following command:
+### 3. Установка зависимостей
 
 ```bash
+# Настройка виртуального окружения внутри проекта
 poetry config virtualenvs.in-project true
-```
-, and then install dependencies:
-```bash
+
+# Установка зависимостей
 poetry install
 ```
 
-## Activate Enviroment
+### 4. Настройка окружения
 
-1. Windows:
-```bash
-.venv\Scripts\activate
-```
-2. Linux/MacOS:
-```bash
-source .venv/bin/activate
-```
-
-## Environment Configuration
-
-The project supports multiple environments: **development**, **staging**, and **production**.
-
-### Setting Up Environment
-
-1. Copy `.env.example` to `.env`:
+1. Скопируйте `.env.example` в `.env`:
 ```bash
 cp .env.example .env
 ```
 
-2. Edit `.env` and set your environment variables:
+2. Отредактируйте `.env`:
 ```bash
-# Select environment: development, staging, production
-ENV=development
+# Выбор окружения
+ENV=development-remote
 
-DEBUG=True
-BOT_TOKEN=your_token_from_BotFather
+# Токен Telegram бота (получить у @BotFather)
+BOT_TOKEN=your_bot_token_here
 
-API_KEY=your_api_key
-API_SECRET=your_api_secret
-API_PASSWORD=your_api_password
-API_URL=your_api_url
+# NMservices API (адрес backend сервера)
+REMOTE_API_BASE_URL=http://192.168.1.191:8000
+REMOTE_API_KEY=your_api_key_here
 
-# For staging/production (PostgreSQL)
-DB_HOST=localhost
-DB_USER=nomus_user
-DB_PASSWORD=secure_password
+# Опционально: пропуск регистрации для быстрого тестирования
+SKIP_REGISTRATION=False
 ```
 
-### Environment Differences
+### 5. Запуск бота
 
-| Feature | Development | Staging | Production |
-|---------|-------------|---------|------------|
-| Database | In-memory | PostgreSQL | PostgreSQL |
-| SMS Service | Stub (logs to console) | Real (test mode) | Real (live) |
-| Payment Service | Stub (instant) | Real (test mode) | Real (live) |
-| Logging Level | DEBUG | INFO | WARNING |
-| Monitoring | Disabled | Optional | Enabled |
-
-### Configuration Files
-
-Environment-specific settings are stored in:
-- `config/environments/development.yaml` - Development settings
-- `config/environments/staging.yaml` - Staging settings
-- `config/environments/production.yaml` - Production settings
-- `config/localization/messages.yaml` - Localization messages (all environments)
-
-## Usage
-
-### Running in Different Environments
-
-**Development (default):**
 ```bash
-# Using scripts
-./scripts/run_dev.sh      # Linux/MacOS
-scripts\run_dev.bat       # Windows
-
-# Or manually
+# Development с локальными stub-сервисами
 ENV=development poetry run python -m nomus.main
-```
 
-**Staging:**
-```bash
-# Using scripts
-./scripts/run_staging.sh   # Linux/MacOS
-scripts\run_staging.bat    # Windows
+# Development с удалённым NMservices API
+ENV=development-remote poetry run python -m nomus.main
 
-# Or manually
-ENV=staging poetry run python -m nomus.main
-```
-
-**Production:**
-```bash
-# Using scripts
-./scripts/run_prod.sh      # Linux/MacOS
-scripts\run_prod.bat       # Windows
-
-# Or manually
+# Production
 ENV=production poetry run python -m nomus.main
 ```
 
-**Legacy method (uses development by default):**
+---
+
+## 🌍 Окружения
+
+Проект поддерживает несколько режимов работы:
+
+### `development` - Локальная разработка
+- **Database**: MemoryStorage (in-memory кеш)
+- **SMS**: Stub (логи в консоль, фиксированный код `1234`)
+- **Payment**: Stub (мгновенное подтверждение)
+- **Logging**: DEBUG
+
+**Использование**: Быстрая разработка без внешних зависимостей.
+
+### `development-remote` - Разработка с удалённым API
+- **Database**: MemoryStorage (in-memory кеш)
+- **SMS**: Remote (через NMservices API)
+- **Payment**: Remote (через NMservices API)
+- **Logging**: DEBUG
+
+**Использование**: Тестирование интеграции с реальным backend.
+
+### `staging` - Тестовая среда
+- **Database**: MemoryStorage (in-memory кеш)
+- **SMS**: Real (Eskiz, test mode)
+- **Payment**: Real (Payme, test mode)
+- **Logging**: INFO
+
+**Использование**: Тестирование перед production.
+
+### `production` - Боевой режим
+- **Database**: MemoryStorage (in-memory кеш)
+- **SMS**: Real (Eskiz, live mode)
+- **Payment**: Real (Payme, live mode)
+- **Logging**: WARNING
+- **Monitoring**: Sentry включён
+
+**Использование**: Работа с реальными пользователями.
+
+---
+
+## 🔧 Конфигурация
+
+### Переменные окружения (.env)
+
 ```bash
-poetry run python -m nomus.main
-# or in virtual environment:
-nomus
+# Выбор окружения
+ENV=development-remote
+
+# Debug режим
+DEBUG=True
+
+# Telegram Bot
+BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# Remote API (NMservices)
+REMOTE_API_BASE_URL=http://your-backend:8000
+REMOTE_API_KEY=your_api_key
+
+# Development опции
+SKIP_REGISTRATION=False  # Пропустить регистрацию для быстрого тестирования
+
+# Monitoring (production)
+SENTRY_DSN=https://your-sentry-dsn
 ```
 
-## Development
+### YAML конфигурации
 
-The source code is located in `src/nomus`.
+Каждое окружение имеет свой YAML файл в `config/environments/`:
+- Параметры логирования
+- Тип хранилища данных
+- Конфигурация сервисов (SMS, Payment)
+- Настройки бота и API
+
+---
+
+## 🧪 Тестирование
+
+### Проверка окружения
+
+```bash
+poetry run python tests/manual/test_env_check.py
+```
+
+### Тест подключения к NMservices API
+
+```bash
+poetry run python tests/manual/test_api_connection.py
+```
+
+**Тест проверяет**:
+- Загрузку конфигурации
+- Подключение к NMservices API
+- Регистрацию пользователя (`POST /users/register`)
+- Создание заказа (`POST /orders`)
+
+### Запуск всех тестов
+
+```bash
+pytest tests/
+```
+
+---
+
+## 📚 Документация
+
+- **[CLAUDE.md](./CLAUDE.md)** - Полная документация для разработки с Claude Code
+- **[docs/bot_flow.md](./docs/bot_flow.md)** - Детальный flow работы бота
+- **[docs/DDD_Analysis.md](./docs/DDD_Analysis.md)** - Анализ DDD архитектуры
+- **[docs/QUICKSTART_DB_TESTING.md](./docs/QUICKSTART_DB_TESTING.md)** - Быстрый старт для отладки API
+- **[docs/TEST_RESULTS.md](./docs/TEST_RESULTS.md)** - Результаты интеграционных тестов
+
+---
+
+## 🌐 Локализация
+
+Бот поддерживает три языка:
+- 🇷🇺 Русский (ru)
+- 🇺🇿 Узбекский (uz)
+- 🇬🇧 Английский (en)
+
+Все тексты хранятся в `config/localization/messages.yaml`.
+
+---
+
+## 🛠️ Технологический стек
+
+- **Python 3.11+**
+- **aiogram 3.x** - Telegram Bot Framework
+- **httpx** - Асинхронный HTTP-клиент для NMservices API
+- **pydantic-settings** - Управление конфигурацией
+- **pytest** - Тестирование
+- **Poetry** - Управление зависимостями
+
+---
+
+## 🔄 Workflow разработки
+
+1. **Создайте feature branch**:
+```bash
+git checkout -b feature/your-feature-name
+```
+
+2. **Внесите изменения** и протестируйте локально
+
+3. **Запустите тесты**:
+```bash
+pytest tests/
+```
+
+4. **Создайте коммит**:
+```bash
+git add .
+git commit -m "feat: your feature description"
+```
+
+5. **Создайте Pull Request** в `main` branch
+
+---
+
+## 📝 Версия
+
+**Текущая версия**: смотри в `pyproject.toml`
+
+
+---
+
+## 👥 Контакты
+
+- **GitHub**: [imchrm/NoMus](https://github.com/imchrm/NoMus)
+- **Issues**: [Сообщить о проблеме](https://github.com/imchrm/NoMus/issues)
+
+---
+
+## 📄 Лицензия
+
+[Информация о лицензии]
+
+---
+
+**Последнее обновление**: 2026-01-13

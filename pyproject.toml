@@ -1,6 +1,6 @@
 [project]
 name = "nomus"
-version = "0.4.1"
+version = "0.5.1"
 description = "Project for providing services to the population."
 authors = [{ name = "Dimitrii Chrm", email = "im.chrm@gmail.com" }]
 license = { text = "MIT" }
