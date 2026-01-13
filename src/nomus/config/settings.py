@@ -232,6 +232,8 @@ class Settings(BaseSettings):
     bot_token: str = ""
 
     # Database credentials (from .env)
+    # NOTE: Not used in current architecture. Bot communicates with NMservices API,
+    # which handles PostgreSQL connection. These are kept for potential future use.
     db_host: str = ""
     db_user: str = ""
     db_password: str = ""
