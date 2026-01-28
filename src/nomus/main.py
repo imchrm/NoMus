@@ -1,7 +1,11 @@
 import asyncio
 import logging
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage as AiogramMemoryStorage
+
+# Загружаем переменные окружения из .env до импорта Settings
+load_dotenv()
 
 from nomus.config.settings import Settings
 from nomus.infrastructure.factory import ServiceFactory
