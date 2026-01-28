@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Set
 from nomus.domain.interfaces.repo_interface import IStorageRepository
 from nomus.infrastructure.database.memory_storage import MemoryStorage
@@ -112,6 +113,18 @@ class RemoteStorage(IStorageRepository):
     # Flush mechanism
     # ==========================================
 
+    def _serialize_for_json(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Конвертирует datetime объекты в ISO формат для JSON сериализации"""
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, datetime):
+                result[key] = value.isoformat()
+            elif isinstance(value, dict):
+                result[key] = self._serialize_for_json(value)
+            else:
+                result[key] = value
+        return result
+
     async def flush(self) -> None:
         """
         Синхронизирует все изменения с remote API.
@@ -129,7 +142,8 @@ class RemoteStorage(IStorageRepository):
             user_data = await self._cache.get_user_by_telegram_id(telegram_id)
             if user_data:
                 try:
-                    await self._api_client.post("/users/register", user_data)
+                    serialized_data = self._serialize_for_json(user_data)
+                    await self._api_client.post("/users/register", serialized_data)
                     log.debug("User %s synced to remote API", telegram_id)
                 except RemoteApiError as e:
                     log.error("Failed to sync user %s: %s", telegram_id, e)
@@ -140,7 +154,8 @@ class RemoteStorage(IStorageRepository):
             order_data = await self._cache.get_order_by_id(order_id)
             if order_data:
                 try:
-                    await self._api_client.post("/orders", order_data)
+                    serialized_data = self._serialize_for_json(order_data)
+                    await self._api_client.post("/orders", serialized_data)
                     log.debug("Order %s synced to remote API", order_id)
                 except RemoteApiError as e:
                     log.error("Failed to sync order %s: %s", order_id, e)
