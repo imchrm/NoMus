@@ -48,7 +48,7 @@ class RemoteStorage(IStorageRepository):
 
         # 2. Если нет в кеше, пробуем загрузить с сервера
         try:
-            user = await self._api_client.get(f"/users/{telegram_id}")
+            user = await self._api_client.get(f"/users/by-telegram/{telegram_id}")
             if user:
                 # Сохраняем в кеш, но не помечаем как dirty (данные свежие)
                 await self._cache.save_or_update_user(telegram_id, user)
