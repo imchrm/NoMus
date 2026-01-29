@@ -60,10 +60,10 @@ async def start_ordering(
         await message.answer(lexicon.order_registration_prompt)
         return
 
-    # Get user language from storage
+    # Get user language from storage (fallback to "ru" if not set)
     lang_code = await storage.get_user_language(message.from_user.id)
-    if lang_code is None:
-        raise ValueError("User language not found in storage.")
+    if not lang_code or lang_code not in ["uz", "ru", "en"]:
+        lang_code = "ru"
 
     await _start_tariff_selection(message, state, order_service, lexicon, lang_code)
 
