@@ -62,11 +62,11 @@ class MemoryStorage(IStorageRepository):
         user = await self.get_user_by_telegram_id(telegram_id)
         if not user:
             return None
-        language_code = user.get("language_code")  # Получаем значение
-        # Проверяем, что это непустая строка
+        language_code = user.get("language_code")
+        # Возвращаем language_code если это непустая строка, иначе None
         if language_code and isinstance(language_code, str):
             return language_code
-        raise ValueError(f"Invalid language_code: {language_code}")
+        return None
 
     async def delete_user(self, telegram_id: int) -> bool:
         is_deleted = False
