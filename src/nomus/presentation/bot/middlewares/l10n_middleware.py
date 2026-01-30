@@ -5,9 +5,24 @@ from aiogram.types import TelegramObject, User
 from nomus.config.settings import Settings
 from nomus.config.settings import Messages
 from nomus.domain.interfaces.repo_interface import IStorageRepository
+from nomus.application.services.language_service import (
+    get_user_language_with_fallback,
+    SUPPORTED_LANGUAGES,
+    DEFAULT_LANGUAGE,
+)
 
 
 class L10nMiddleware(BaseMiddleware):
+    """
+    Middleware для определения языка пользователя и внедрения lexicon в handlers.
+
+    Решение 3: Использует get_user_language_with_fallback() для автоматического
+    определения языка с приоритетом:
+    1. Сохранённый язык в storage
+    2. Язык из Telegram API (если поддерживается)
+    3. Русский по умолчанию
+    """
+
     def __init__(self, settings: Settings, storage: IStorageRepository):
         self.settings = settings
         self.storage = storage
@@ -21,23 +36,16 @@ class L10nMiddleware(BaseMiddleware):
         # Получаем объект пользователя, если он есть
         user: User | None = data.get("event_from_user")
 
-        lang_code = "en"  # Fallback
+        lang_code = DEFAULT_LANGUAGE  # Fallback на русский
         if user:
-            # 1. Пытаемся получить язык из нашей "базы данных"
-            user_data = await self.storage.get_user_by_telegram_id(user.id)
-            if user_data and user_data.get("language_code"):
-                lang_code = user_data["language_code"]
-            # 2. Если в базе нет, берем из профиля Telegram
-            elif user.language_code in ("ru", "en", "uz"):
-                lang_code = user.language_code
+            # Решение 3: Используем централизованную функцию с fallback
+            lang_code = await get_user_language_with_fallback(user, self.storage)
+
+        # Если языка нет в конфиге, откатываемся на default
+        if not hasattr(self.settings.messages, lang_code):
+            lang_code = DEFAULT_LANGUAGE
 
         # Получаем нужный объект Messages и "внедряем" его в хендлер
-        # под ключом 'lexicon'.
-        # Это и есть ключевой момент: мы один раз используем строковый ключ,
-        # чтобы получить нужный объект.
-        # Если языка нет в конфиге, откатываемся на английский
-        if not hasattr(self.settings.messages, lang_code):
-            lang_code = "en"
         lexicon_obj: Messages = getattr(self.settings.messages, lang_code)
         data["lexicon"] = lexicon_obj
 

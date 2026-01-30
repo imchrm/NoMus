@@ -110,6 +110,7 @@ class Messages(BaseModel):
     user_agreement_button: str = ""
     user_agreement_accept_button: str = ""
     order_status: str = ""
+    order_continue_after_language: str = ""
 
 
 class I18nConfig(BaseModel):

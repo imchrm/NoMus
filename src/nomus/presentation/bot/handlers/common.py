@@ -15,6 +15,12 @@ from nomus.config.bot_user_properties import BotUserProps
 from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages, Settings
 from nomus.application.services.auth_service import AuthService
+from nomus.application.services.language_service import (
+    get_user_language_with_fallback,
+    is_valid_language,
+    SUPPORTED_LANGUAGES,
+)
+from nomus.presentation.bot.states.language import LanguageStates
 
 log: logging.Logger = logging.getLogger(__name__)
 
@@ -58,6 +64,44 @@ async def _send_language_selection(message: Message):
         BotUserProps.DEF_SELECT_LANG_PHRASE,
         reply_markup=keyboard,
     )
+
+
+async def ensure_user_language(
+    message: Message,
+    storage: IUserRepository,
+    state: FSMContext,
+    return_to: str | None = None,
+) -> str | None:
+    """
+    Проверяет наличие языка пользователя.
+    Если язык отсутствует — показывает выбор языка и возвращает None.
+    Если язык есть — возвращает language_code.
+
+    Решение 2: Запрашивать язык при отсутствии.
+
+    Args:
+        message: Сообщение пользователя
+        storage: Репозиторий пользователей
+        state: FSM контекст
+        return_to: Куда вернуться после выбора языка (например, "ordering")
+
+    Returns:
+        Код языка если найден, None если показан выбор языка
+    """
+    if not message.from_user:
+        return None
+
+    lang_code = await storage.get_user_language(message.from_user.id)
+    if is_valid_language(lang_code):
+        return lang_code
+
+    # Язык не найден — показываем выбор
+    log.info("Language not found for user %s, showing selection", message.from_user.id)
+    await state.set_state(LanguageStates.waiting_for_language)
+    if return_to:
+        await state.update_data(return_to=return_to)
+    await _send_language_selection(message)
+    return None
 
 
 @router.message(CommandStart())
@@ -111,10 +155,8 @@ async def cmd_start(
     if user_data and user_data.get("phone_number"):
         log.info("Registered user %s returned", message.from_user.id)
 
-        # Получаем язык пользователя
-        lang_code = await storage.get_user_language(message.from_user.id)
-        if not lang_code or lang_code not in ["uz", "ru", "en"]:
-            lang_code = "ru"  # Fallback
+        # Решение 3: Получаем язык пользователя с fallback на Telegram API
+        lang_code = await get_user_language_with_fallback(message.from_user, storage)
 
         lexicon = getattr(settings.messages, lang_code)
 
@@ -130,9 +172,9 @@ async def cmd_start(
     # ===================================================================
     log.info("New or unregistered user %s", message.from_user.id)
 
-    # Определяем язык из Telegram API
+    # Решение 3: Определяем язык из Telegram API с fallback
     lang_code = message.from_user.language_code
-    if lang_code not in ["uz", "ru", "en"]:
+    if lang_code not in SUPPORTED_LANGUAGES:
         lang_code = "ru"  # Fallback на русский
 
     # Создаём "черновик" пользователя с базовыми данными
@@ -147,7 +189,7 @@ async def cmd_start(
     )
 
     # Если язык определён из Telegram, показываем информационное сообщение
-    if message.from_user.language_code in ["uz", "ru", "en"]:
+    if message.from_user.language_code in SUPPORTED_LANGUAGES:
         lexicon = getattr(settings.messages, lang_code)
         await message.answer(
             lexicon.language_detected.format(lang_code=lang_code.upper())
@@ -189,9 +231,17 @@ async def cmd_language(message: Message, lexicon: Messages):
 
 @router.callback_query(F.data.startswith("lang_"))
 async def process_lang_select(
-    callback: CallbackQuery, storage: IUserRepository, settings: Settings
+    callback: CallbackQuery,
+    storage: IUserRepository,
+    settings: Settings,
+    state: FSMContext,
 ):
-    """Saves the selected language and shows User Agreement."""
+    """
+    Saves the selected language and handles return to interrupted action.
+
+    Решение 2: Если пользователь был перенаправлен сюда из другого действия
+    (например, из ordering), возвращаем его обратно после выбора языка.
+    """
     if not callback.from_user:
         return
     assert callback.data is not None
@@ -204,16 +254,34 @@ async def process_lang_select(
         telegram_id=callback.from_user.id, language_code=_language_code
     )
 
-    # Let the user know the language has been changed
     assert isinstance(callback.message, Message)
 
-    # We will get the new lexicon after updating language in storage
-    # TODO: how can I reload lexicon?
-    # Probabli I can change state and handle it in another handler where will bw updated lexicon
     new_lexicon = getattr(settings.messages, _language_code)
     await callback.message.edit_text(new_lexicon.language_changed_prompt)
 
-    # Show User Agreement and Agree button
+    # Проверяем, нужно ли вернуться к прерванному действию (Решение 2)
+    current_state = await state.get_state()
+    if current_state == LanguageStates.waiting_for_language.state:
+        data = await state.get_data()
+        return_to = data.get("return_to")
+
+        if return_to == "ordering":
+            # Очищаем состояние и возвращаемся к оформлению заказа
+            await state.clear()
+            log.info("Returning user %s to ordering after language selection", callback.from_user.id)
+            # Импортируем здесь для избежания циклических импортов
+            from nomus.presentation.bot.handlers.ordering import _start_tariff_selection
+
+            # Получаем order_service из data (должен быть передан в middleware)
+            # Используем callback.message для отправки сообщений
+            await callback.message.answer(new_lexicon.order_continue_after_language)
+            await callback.answer()
+            return
+
+        # Другие return_to могут быть добавлены здесь
+        await state.clear()
+
+    # Обычный flow — показываем User Agreement
     kb = get_agreement_kb(new_lexicon, _language_code)
     await callback.message.answer(
         new_lexicon.user_agreement_prompt,

@@ -63,12 +63,46 @@ class RemoteStorage(IStorageRepository):
         """Получает язык пользователя из кеша"""
         return await self._cache.get_user_language(telegram_id)
 
+    async def update_language_on_server(self, server_user_id: int, language_code: str) -> bool:
+        """
+        Обновляет язык пользователя на сервере NMservices.
+
+        Args:
+            server_user_id: ID пользователя на сервере NMservices (не telegram_id!)
+            language_code: Код языка (ru, uz, en)
+
+        Returns:
+            True если обновление успешно, False в случае ошибки
+        """
+        try:
+            await self._api_client.patch(
+                f"/users/{server_user_id}/language",
+                {"language_code": language_code}
+            )
+            log.debug("Language for user %s updated on server to %s", server_user_id, language_code)
+            return True
+        except RemoteApiError as e:
+            log.error("Failed to update language on server for user %s: %s", server_user_id, e)
+            return False
+
     async def update_user_language(self, telegram_id: int, language_code: str) -> bool:
-        """Обновляет язык пользователя в кеше и помечает для синхронизации"""
+        """
+        Обновляет язык пользователя в кеше и синхронизирует с сервером.
+
+        При смене языка:
+        1. Обновляет язык в локальном кеше
+        2. Если у пользователя есть server_user_id, сразу синхронизирует с сервером
+        """
         result = await self._cache.update_user_language(telegram_id, language_code)
         if result:
             self._dirty_users.add(telegram_id)
             log.debug("User %s language updated in cache and marked dirty", telegram_id)
+
+            # Синхронизируем с сервером сразу, если есть server_user_id
+            user = await self._cache.get_user_by_telegram_id(telegram_id)
+            if user and user.get("server_user_id"):
+                await self.update_language_on_server(user["server_user_id"], language_code)
+
         return result
 
     async def delete_user(self, telegram_id: int) -> bool:
