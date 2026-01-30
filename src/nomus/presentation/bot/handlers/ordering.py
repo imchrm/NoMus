@@ -14,6 +14,7 @@ from aiogram.fsm.context import FSMContext
 from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
+from nomus.application.services.language_service import get_user_language_with_fallback
 from nomus.domain.interfaces.repo_interface import IStorageRepository, IUserRepository
 from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
@@ -60,10 +61,8 @@ async def start_ordering(
         await message.answer(lexicon.order_registration_prompt)
         return
 
-    # Get user language from storage (fallback to "ru" if not set)
-    lang_code = await storage.get_user_language(message.from_user.id)
-    if not lang_code or lang_code not in ["uz", "ru", "en"]:
-        lang_code = "ru"
+    # Решение 3: Получаем язык пользователя с fallback на Telegram API
+    lang_code = await get_user_language_with_fallback(message.from_user, storage)
 
     await _start_tariff_selection(message, state, order_service, lexicon, lang_code)
 

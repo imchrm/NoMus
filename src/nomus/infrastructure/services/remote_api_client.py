@@ -201,6 +201,12 @@ class RemoteApiClient:
         """POST-запрос к API."""
         return await self._request_with_retry("POST", endpoint, json_data=data)
 
+    async def patch(
+        self, endpoint: str, data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """PATCH-запрос к API."""
+        return await self._request_with_retry("PATCH", endpoint, json_data=data)
+
     async def health_check(self) -> bool:
         """
         Проверяет доступность API.
