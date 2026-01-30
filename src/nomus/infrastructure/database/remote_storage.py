@@ -177,6 +177,8 @@ class RemoteStorage(IStorageRepository):
             if user_data:
                 try:
                     serialized_data = self._serialize_for_json(user_data)
+                    # DEBUG: Логируем данные, отправляемые на сервер
+                    log.info("Sending user data to remote API: %s", serialized_data)
                     await self._api_client.post("/users/register", serialized_data)
                     log.debug("User %s synced to remote API", telegram_id)
                 except RemoteApiError as e:
