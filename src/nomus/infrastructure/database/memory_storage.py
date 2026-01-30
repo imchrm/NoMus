@@ -28,6 +28,9 @@ class MemoryStorage(IStorageRepository):
 
     async def save_or_update_user(self, telegram_id: int, data: Dict[str, Any]) -> None:
         """Saves or updates user data using telegram_id as the key."""
+        # Убеждаемся, что telegram_id всегда есть в данных пользователя
+        data["telegram_id"] = telegram_id
+
         if telegram_id in self.users:
             self.users[telegram_id].update(data)
             log.debug("User %s updated with data: %s", telegram_id, data)
