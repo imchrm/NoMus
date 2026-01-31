@@ -56,7 +56,11 @@ class OrderService:
             # Remote режим - получаем server_user_id из БД
             if self.user_repo:
                 user_data = await self.user_repo.get_user_by_telegram_id(int(user_id))
-                server_user_id = user_data.get("server_user_id") if user_data else None
+                # server_user_id может быть в поле "server_user_id" (локальная регистрация)
+                # или в поле "id" (данные загружены с сервера NMservices)
+                server_user_id = (
+                    user_data.get("server_user_id") or user_data.get("id")
+                ) if user_data else None
 
                 if server_user_id:
                     # Получаем код тарифа для API
