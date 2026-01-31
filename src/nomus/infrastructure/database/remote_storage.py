@@ -60,8 +60,22 @@ class RemoteStorage(IStorageRepository):
         return None
 
     async def get_user_language(self, telegram_id: int) -> str | None:
-        """Получает язык пользователя из кеша"""
-        return await self._cache.get_user_language(telegram_id)
+        """
+        Получает язык пользователя (Read-Through).
+
+        Если данных нет в кеше — пытается загрузить пользователя с сервера.
+        """
+        # 1. Проверяем кеш
+        lang = await self._cache.get_user_language(telegram_id)
+        if lang:
+            return lang
+
+        # 2. Если нет в кеше — загружаем пользователя с сервера
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user:
+            return user.get("language_code")
+
+        return None
 
     async def update_language_on_server(self, server_user_id: int, language_code: str) -> bool:
         """
