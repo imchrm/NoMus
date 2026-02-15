@@ -1,21 +1,21 @@
 import logging
-import uuid
+from decimal import Decimal, InvalidOperation
+
 from aiogram import F, Router
 from aiogram.types import (
     Message,
-    ReplyKeyboardMarkup,
-    KeyboardButton,
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     ReplyKeyboardRemove,
 )
 from aiogram.fsm.context import FSMContext
+
 from nomus.presentation.bot.states.ordering import OrderStates
 from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.language_service import get_user_language_with_fallback
-from nomus.domain.interfaces.repo_interface import IStorageRepository, IUserRepository
+from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 
@@ -24,23 +24,54 @@ log: logging.Logger = logging.getLogger(__name__)
 router = Router()
 
 
-async def _start_tariff_selection(
+def _format_price(raw_price: str | Decimal | int | float | None) -> str:
+    """Форматирует цену: '150000.00' → '150 000'."""
+    if raw_price is None:
+        return "—"
+    try:
+        value = int(Decimal(str(raw_price)))
+        return f"{value:,}".replace(",", " ")
+    except (InvalidOperation, ValueError):
+        return str(raw_price)
+
+
+def _build_services_keyboard(services: list[dict]) -> InlineKeyboardMarkup:
+    """Строит inline-клавиатуру со списком услуг."""
+    buttons: list[list[InlineKeyboardButton]] = []
+    for svc in services:
+        name = svc.get("name", "—")
+        price = _format_price(svc.get("base_price"))
+        duration = svc.get("duration_minutes")
+        duration_text = f" ({duration} min)" if duration else ""
+        label = f"{name} — {price} сум{duration_text}"
+        buttons.append(
+            [InlineKeyboardButton(text=label, callback_data=f"svc_{svc['id']}")]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+async def _start_service_selection(
     message: Message,
     state: FSMContext,
     order_service: OrderService,
     lexicon: Messages,
-    lang_code: str,
-):
-    """Helper to start the tariff selection process."""
-    tariffs = await order_service.get_tariffs(lang=lang_code)
-    # Store tariffs in state for validation
-    await state.update_data(tariffs=tariffs)
+) -> None:
+    """Вспомогательная функция: запускает выбор услуги."""
+    services = await order_service.get_services()
 
-    kb = [[KeyboardButton(text=t)] for t in tariffs.keys()]
-    keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+    if not services:
+        await message.answer(lexicon.no_services_available)
+        return
 
-    await message.answer(lexicon.select_tariff_prompt, reply_markup=keyboard)
-    await state.set_state(OrderStates.selecting_tariff)
+    # Сохраняем услуги в состоянии для последующей валидации
+    await state.update_data(services={str(s["id"]): s for s in services})
+
+    keyboard = _build_services_keyboard(services)
+    await message.answer(lexicon.select_service_prompt, reply_markup=keyboard)
+    await state.set_state(OrderStates.selecting_service)
+
+
+# ─── 1. Начало заказа ───────────────────────────────────────────────
 
 
 @router.message(TextEquals("start_ordering_button"))
@@ -51,97 +82,159 @@ async def start_ordering(
     auth_service: AuthService,
     storage: IUserRepository,
     lexicon: Messages,
-):
-    # We can't process an action without a user (e.g., from a channel)
+) -> None:
     if not message.from_user:
         return
 
-    # Check if the user is registered
+    # Проверка регистрации
     if not await auth_service.is_user_registered(message.from_user.id):
         await message.answer(lexicon.order_registration_prompt)
         return
 
-    # Решение 3: Получаем язык пользователя с fallback на Telegram API
-    lang_code = await get_user_language_with_fallback(message.from_user, storage)
-
-    await _start_tariff_selection(message, state, order_service, lexicon, lang_code)
+    await _start_service_selection(message, state, order_service, lexicon)
 
 
-@router.message(OrderStates.selecting_tariff)
-async def process_tariff(message: Message, state: FSMContext, lexicon: Messages):
-    if not message.text:
-        return
-    tariff_name = message.text.strip()  # Убираем лишние пробелы с концов строки
+# ─── 2. Выбор услуги (inline callback) ──────────────────────────────
+
+
+@router.callback_query(OrderStates.selecting_service, F.data.startswith("svc_"))
+async def process_service_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    lexicon: Messages,
+) -> None:
+    assert isinstance(callback.message, Message)
+
+    service_id = callback.data.removeprefix("svc_")  # type: ignore[union-attr]
     data = await state.get_data()
-    tariffs = data.get("tariffs", {})
-    log.info(
-        "Processing tariff selection. Tariff name: '%s'. Tariffs in state: %s",
-        tariff_name,
-        tariffs,
-    )
+    services: dict = data.get("services", {})
 
-    if tariff_name not in tariffs:
-        await message.answer(lexicon.choose_tariff_from_list_prompt)
+    selected = services.get(service_id)
+    if not selected:
+        await callback.answer("Service not found")
         return
 
-    amount = tariffs[tariff_name]
-    await state.update_data(tariff=tariff_name, amount=amount)
-
-    # Inline keyboard for payment
-    kb = [
-        [
-            InlineKeyboardButton(
-                text=lexicon.payment_button.format(amount=amount), callback_data="pay"
-            )
-        ]
-    ]
-    keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
-
-    await message.answer(
-        lexicon.payment_prompt.format(tariff_name=tariff_name, amount=amount),
-        reply_markup=keyboard,
+    await state.update_data(
+        selected_service=selected,
+        service_id=int(service_id),
     )
-    await state.set_state(OrderStates.waiting_for_payment)
-    current_state = await state.get_state()
-    log.debug("State set to: %s", current_state)
+
+    # Убираем inline-кнопки и просим адрес
+    await callback.message.edit_text(
+        f"{lexicon.select_service_prompt} {selected['name']}"
+    )
+    await callback.message.answer(
+        lexicon.enter_address_prompt, reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(OrderStates.entering_address)
+    await callback.answer()
 
 
-@router.callback_query(OrderStates.waiting_for_payment, F.data == "pay")
-async def process_payment(
+# ─── 3. Ввод адреса ─────────────────────────────────────────────────
+
+
+@router.message(OrderStates.entering_address)
+async def process_address(
+    message: Message,
+    state: FSMContext,
+    lexicon: Messages,
+) -> None:
+    if not message.text or not message.text.strip():
+        await message.answer(lexicon.enter_address_prompt)
+        return
+
+    address = message.text.strip()
+    await state.update_data(address=address)
+
+    # Показываем summary
+    data = await state.get_data()
+    svc = data["selected_service"]
+    price = _format_price(svc.get("base_price"))
+    duration = svc.get("duration_minutes", "—")
+
+    summary = lexicon.order_summary.format(
+        service_name=svc["name"],
+        duration=duration,
+        price=price,
+        address=address,
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=lexicon.confirm_order_button, callback_data="order_confirm"
+                ),
+                InlineKeyboardButton(
+                    text=lexicon.cancel_order_button, callback_data="order_cancel"
+                ),
+            ]
+        ]
+    )
+
+    await message.answer(summary, reply_markup=keyboard)
+    await state.set_state(OrderStates.confirming_order)
+
+
+# ─── 4. Подтверждение заказа ─────────────────────────────────────────
+
+
+@router.callback_query(OrderStates.confirming_order, F.data == "order_confirm")
+async def process_order_confirm(
     callback: CallbackQuery,
     state: FSMContext,
     order_service: OrderService,
-    storage: IStorageRepository,
     lexicon: Messages,
-):
-    # Assert that the message is an accessible `Message` object, not `InaccessibleMessage`.
-    # This satisfies Pylance and ensures the .edit_text() method exists.
+) -> None:
     assert isinstance(callback.message, Message)
 
-    await callback.message.edit_text(lexicon.payment_processing)
+    await callback.message.edit_text(lexicon.order_creating)
 
     data = await state.get_data()
-    # Assume user phone is stored in context or passed differently.
-    # For PoC, we might need to ask for it or assume it's from the user object if registered.
-    # Here we just use the telegram user id/name as placeholder if phone not in state
-    user_id = str(callback.from_user.id)
+    service_id: int = data["service_id"]
+    address: str = data["address"]
 
-    success = await order_service.create_order(
-        user_id=user_id, tariff=data["tariff"], amount=data["amount"]
-    )
-    order_id = uuid.uuid4()  # TODO: replace with real order id
-
-    # Синхронизируем данные с remote storage (если используется)
-    await storage.flush()
-
-    if success:
-        await callback.message.delete()
-        await callback.message.answer(
-            lexicon.order_success.format(order_id=order_id),
-            reply_markup=ReplyKeyboardRemove(),
+    # Получаем server_user_id
+    server_user_id = await order_service.get_server_user_id(callback.from_user.id)
+    if not server_user_id:
+        log.error(
+            "server_user_id not found for telegram_id=%s", callback.from_user.id
         )
-        await callback.message.answer(lexicon.order_status)
+        await callback.message.edit_text(lexicon.order_creation_error)
+        await state.clear()
+        await callback.answer()
+        return
+
+    # Создаём заказ
+    result = await order_service.create_order(
+        server_user_id=server_user_id,
+        service_id=service_id,
+        address_text=address,
+    )
+
+    if result:
+        order_id = result.get("order_id", "—")
+        await callback.message.edit_text(
+            lexicon.order_created.format(order_id=order_id)
+        )
     else:
-        await callback.message.edit_text(lexicon.payment_error)
+        await callback.message.edit_text(lexicon.order_creation_error)
 
     await state.clear()
+    await callback.answer()
+
+
+# ─── 5. Отмена заказа ───────────────────────────────────────────────
+
+
+@router.callback_query(OrderStates.confirming_order, F.data == "order_cancel")
+async def process_order_cancel(
+    callback: CallbackQuery,
+    state: FSMContext,
+    lexicon: Messages,
+) -> None:
+    assert isinstance(callback.message, Message)
+
+    await callback.message.edit_text(lexicon.order_cancelled)
+    await state.clear()
+    await callback.answer()

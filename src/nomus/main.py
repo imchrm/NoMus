@@ -40,7 +40,8 @@ class BotApplication:
         self.order_service = OrderService(
             order_repo=self.storage,
             payment_service=self.payment_service,
-            user_repo=self.storage,  # Передаем user_repo для remote-режима
+            user_repo=self.storage,
+            api_client=ServiceFactory._api_client,
         )
 
         # 3. Presentation Layer

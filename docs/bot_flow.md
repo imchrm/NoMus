@@ -108,38 +108,57 @@
         *   `->` Синхронизация всех изменений ("dirty" records) с удаленным сервером (через `RemoteApiClient`)
     *   `->` `Message.answer` ("Регистрация успешно завершена!")
     *   **Переход к заказу:**
-        *   `->` **RemoteStorage.get_user_language** (Из кеша)
-        *   `->` **ordering._start_tariff_selection** (Вспомогательная функция)
-            *   `->` **OrderService.get_tariffs** (Application Service)
-            *   `->` `FSMContext.update_data` (Сохранение тарифов)
-            *   `->` `Message.answer` (Предложение выбрать тариф, клавиатура тарифов)
-            *   `->` `FSMContext.set_state(OrderStates.selecting_tariff)`
+        *   `->` **ordering._start_service_selection** (Вспомогательная функция)
+            *   `->` **OrderService.get_services** (Application Service → `GET /services`)
+            *   `->` `FSMContext.update_data` (Сохранение списка услуг)
+            *   `->` `Message.answer` ("Выберите услугу:", Inline клавиатура с услугами)
+            *   `->` `FSMContext.set_state(OrderStates.selecting_service)`
 
-## 5. Выбор заказа и Оплата
+## 5. Выбор услуги
 
-1.  **User** (выбирает тариф, например "Start")
-2.  `->` **Router** (ловит текст в состоянии `selecting_tariff`)
-3.  `->` **ordering.process_tariff** (Handler в `presentation.bot.handlers.ordering.py`)
-    *   `->` Валидация тарифа
-    *   `->` `FSMContext.update_data` (Сохранение выбранного тарифа и суммы)
-    *   `->` Создание `InlineKeyboardMarkup` (Кнопка "Оплатить X сум")
-    *   `->` `Message.answer` (Инвойс/Сумма к оплате)
-    *   `->` `FSMContext.set_state(OrderStates.waiting_for_payment)`
-4.  `->` **User** (нажимает "Оплатить")
+1.  **User** (нажимает inline-кнопку услуги, например "Классический массаж — 150 000 сум (60 min)")
+2.  `->` **Router** (ловит `CallbackQuery` `svc_{id}` в состоянии `selecting_service`)
+3.  `->` **ordering.process_service_selection** (Handler в `presentation.bot.handlers.ordering.py`)
+    *   `->` Валидация выбранной услуги (по ID из callback_data)
+    *   `->` `FSMContext.update_data` (Сохранение выбранной услуги и service_id)
+    *   `->` `CallbackQuery.message.edit_text` (Подтверждение выбора, убирает inline-кнопки)
+    *   `->` `Message.answer` ("Укажите адрес для выезда мастера...")
+    *   `->` `FSMContext.set_state(OrderStates.entering_address)`
+4.  `->` **User** (видит запрос на ввод адреса)
 
-5.  **Router** (ловит `CallbackQuery` "pay" в состоянии `waiting_for_payment`)
-6.  `->` **ordering.process_payment** (Handler)
-    *   `->` `CallbackQuery.message.edit_text` ("Обработка платежа...")
+## 6. Ввод адреса
+
+1.  **User** (вводит текстовый адрес, например "ул. Навои 25, кв. 12")
+2.  `->` **Router** (ловит текст в состоянии `entering_address`)
+3.  `->` **ordering.process_address** (Handler)
+    *   `->` Валидация (непустой текст)
+    *   `->` `FSMContext.update_data` (Сохранение адреса)
+    *   `->` Формирование summary (услуга, длительность, цена, адрес)
+    *   `->` `Message.answer` (Summary + Inline клавиатура: [Подтвердить] [Отменить])
+    *   `->` `FSMContext.set_state(OrderStates.confirming_order)`
+4.  `->` **User** (видит summary заказа)
+
+## 7. Подтверждение и создание заказа
+
+1.  **User** (нажимает "Подтвердить")
+2.  `->` **Router** (ловит `CallbackQuery` "order_confirm" в состоянии `confirming_order`)
+3.  `->` **ordering.process_order_confirm** (Handler)
+    *   `->` `CallbackQuery.message.edit_text` ("Создаём ваш заказ...")
+    *   `->` **OrderService.get_server_user_id** (Получение server_user_id из кеша)
     *   `->` **OrderService.create_order** (Application Service)
-        *   `->` **PaymentServiceRemote** (или Stub)
-        *   `->` Если успех:
-            *   `->` **RemoteStorage.save_or_update_order** (Repo) — Сохранение в кеш
-            *   `->` **RemoteStorage.flush** — Синхронизация заказа с сервером
-            *   `->` Возврат `True`
-    *   `->` `CallbackQuery.message.delete()`
-    *   `->` `CallbackQuery.message.answer` ("Заказ успешно оплачен и создан!", удаление клавиатуры)
-    *   `->` `CallbackQuery.message.answer` (Статус заказа)
+        *   `->` **RemoteApiClient.post("/orders")** — `POST /orders` с `{user_id, service_id, address_text}`
+        *   `->` Получение `order_id` из ответа API
+    *   `->` Если успех:
+        *   `->` `CallbackQuery.message.edit_text` ("Заказ #{order_id} создан!")
+    *   `->` Если ошибка:
+        *   `->` `CallbackQuery.message.edit_text` ("Ошибка создания заказа")
     *   `->` `FSMContext.clear()` (Завершение сценария)
+
+    **Альтернатива: Отмена заказа**
+    *   **User** (нажимает "Отменить")
+    *   `->` **ordering.process_order_cancel** (Handler)
+        *   `->` `CallbackQuery.message.edit_text` ("Заказ отменён")
+        *   `->` `FSMContext.clear()`
 
 ---
 

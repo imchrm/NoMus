@@ -1,99 +1,131 @@
-import uuid
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Optional
+
 from nomus.domain.interfaces.repo_interface import IOrderRepository, IUserRepository
 from nomus.domain.interfaces.payment_interface import IPaymentService
 
+log: logging.Logger = logging.getLogger(__name__)
+
+# Заглушка каталога услуг для локальной разработки (stub-режим без remote API)
+_STUB_SERVICES: list[dict[str, Any]] = [
+    {
+        "id": 1,
+        "name": "Классический массаж",
+        "description": "Общий классический массаж тела",
+        "base_price": "150000.00",
+        "duration_minutes": 60,
+        "is_active": True,
+    },
+    {
+        "id": 2,
+        "name": "Спортивный массаж",
+        "description": "Массаж для восстановления после нагрузок",
+        "base_price": "200000.00",
+        "duration_minutes": 90,
+        "is_active": True,
+    },
+    {
+        "id": 3,
+        "name": "Расслабляющий массаж",
+        "description": "Лёгкий расслабляющий массаж",
+        "base_price": "120000.00",
+        "duration_minutes": 45,
+        "is_active": True,
+    },
+]
+
 
 class OrderService:
-    _TARIFFS: Dict[str, Dict[str, int]] = {
-        "ru": {"Эконом": 10000, "Стандарт": 30000, "Премиум": 50000},
-        "en": {"Economy": 10000, "Standard": 30000, "Premium": 50000},
-        "uz": {"Iqtisodiyot": 10000, "Standard": 30000, "Premium": 50000},
-    }
-
-    # Маппинг локализованных названий тарифов на коды для API
-    _TARIFF_CODES: Dict[str, str] = {
-        "Эконом": "economy_100",
-        "Economy": "economy_100",
-        "Iqtisodiyot": "economy_100",
-        "Стандарт": "standard_300",
-        "Standard": "standard_300",
-        "Премиум": "premium_500",
-        "Premium": "premium_500",
-    }
-
-    _DEFAULT_LANG = "ru"
-
     def __init__(
         self,
         order_repo: IOrderRepository,
         payment_service: IPaymentService,
         user_repo: Optional[IUserRepository] = None,
+        api_client: Optional[Any] = None,
     ):
         self.order_repo: IOrderRepository = order_repo
         self.payment_service: IPaymentService = payment_service
         self.user_repo: Optional[IUserRepository] = user_repo
+        self.api_client = api_client  # RemoteApiClient для прямых вызовов API
 
-    async def get_tariffs(self, lang: str = _DEFAULT_LANG) -> Dict[str, int]:
-        return self._TARIFFS.get(lang, self._TARIFFS[self._DEFAULT_LANG])
-
-    async def create_order(self, user_id: str, tariff: str, amount: int) -> bool:
+    async def get_services(self) -> list[dict[str, Any]]:
         """
-        Создает заказ с обработкой платежа.
+        Получает список активных услуг.
 
-        Args:
-            user_id: telegram_id пользователя
-            tariff: Название тарифа (локализованное)
-            amount: Сумма платежа
+        В remote-режиме — вызывает GET /services.
+        В stub-режиме — возвращает захардкоженный каталог.
+        """
+        if self.api_client:
+            try:
+                response = await self.api_client.get("/services")
+                services = response.get("services", [])
+                return [s for s in services if s.get("is_active", True)]
+            except Exception as e:
+                log.error("Failed to fetch services from API: %s", e)
+                return []
+        return list(_STUB_SERVICES)
+
+    async def get_server_user_id(self, telegram_id: int) -> Optional[int]:
+        """
+        Получает server_user_id пользователя по telegram_id.
 
         Returns:
-            True если заказ успешно создан, False иначе
+            ID пользователя на сервере NMservices или None
         """
-        payment_success = False
+        if not self.user_repo:
+            return None
+        user_data = await self.user_repo.get_user_by_telegram_id(telegram_id)
+        if user_data:
+            return user_data.get("server_user_id") or user_data.get("id")
+        return None
 
-        # Проверяем, поддерживает ли сервис create_order_with_payment (remote-режим)
-        if hasattr(self.payment_service, "create_order_with_payment"):
-            # Remote режим - получаем server_user_id из БД
-            if self.user_repo:
-                user_data = await self.user_repo.get_user_by_telegram_id(int(user_id))
-                # server_user_id может быть в поле "server_user_id" (локальная регистрация)
-                # или в поле "id" (данные загружены с сервера NMservices)
-                server_user_id = (
-                    user_data.get("server_user_id") or user_data.get("id")
-                ) if user_data else None
+    async def create_order(
+        self,
+        server_user_id: int,
+        service_id: int,
+        address_text: str,
+    ) -> Optional[dict[str, Any]]:
+        """
+        Создаёт заказ через API.
 
-                if server_user_id:
-                    # Получаем код тарифа для API
-                    tariff_code = self._TARIFF_CODES.get(tariff, "standard_300")
+        Args:
+            server_user_id: ID пользователя на сервере NMservices
+            service_id: ID выбранной услуги
+            address_text: Текстовый адрес
 
-                    payment_success = (
-                        await self.payment_service.create_order_with_payment(
-                            user_id=server_user_id,
-                            tariff_code=tariff_code,
-                            amount=amount,
-                        )
+        Returns:
+            Ответ API {"status": "ok", "order_id": ..., "message": ...}
+            или None при ошибке
+        """
+        if self.api_client:
+            try:
+                response = await self.api_client.post(
+                    "/orders",
+                    {
+                        "user_id": server_user_id,
+                        "service_id": service_id,
+                        "address_text": address_text,
+                    },
+                )
+                if response.get("status") == "ok":
+                    log.info(
+                        "Order created: order_id=%s for user=%s",
+                        response.get("order_id"),
+                        server_user_id,
                     )
-                else:
-                    print(
-                        f"[OrderService] server_user_id not found for user {user_id}"
-                    )
-                    return False
-            else:
-                print("[OrderService] user_repo not available for remote mode")
-                return False
+                    return response
+                log.warning("Unexpected response from /orders: %s", response)
+                return None
+            except Exception as e:
+                log.error("Failed to create order via API: %s", e)
+                return None
         else:
-            # Stub режим - старая логика
-            payment_success = await self.payment_service.process_payment(amount)
-
-        if payment_success:
-            order_id = str(uuid.uuid4())
-            order_data: dict[str, Any] = {
-                "id": order_id,
-                "user": user_id,
-                "tariff": tariff,
-                "amount": amount,
-                "status": "paid",
-            }
-            await self.order_repo.save_or_update_order(order_id, order_data)
-            return True
-        return False
+            # Stub-режим: симулируем создание заказа
+            success = await self.payment_service.process_payment(0)
+            if success:
+                return {
+                    "status": "ok",
+                    "order_id": 999,
+                    "message": "Stub order created",
+                }
+            return None

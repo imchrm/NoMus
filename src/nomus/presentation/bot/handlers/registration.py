@@ -12,7 +12,7 @@ from nomus.domain.interfaces.repo_interface import IStorageRepository, IUserRepo
 from nomus.presentation.bot.states.registration import RegistrationStates
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
-from nomus.presentation.bot.handlers.ordering import _start_tariff_selection
+from nomus.presentation.bot.handlers.ordering import _start_service_selection
 from nomus.presentation.bot.filters.text_equals import TextEquals
 from nomus.config.settings import Messages
 
@@ -155,8 +155,8 @@ async def process_code(
             lang_code = await storage.get_user_language(message.from_user.id)
             # TODO: Проверить утверждение, пересмотреть логику!
             assert lang_code is not None  # утверждаем, что язык точно не None
-            await _start_tariff_selection(
-                message, state, order_service, lexicon, lang_code
+            await _start_service_selection(
+                message, state, order_service, lexicon
             )
 
         else:
