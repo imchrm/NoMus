@@ -12,6 +12,7 @@ from nomus.infrastructure.factory import ServiceFactory
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
 from nomus.presentation.bot.middlewares.l10n_middleware import L10nMiddleware
+from nomus.presentation.bot.middlewares.notification_middleware import NotificationMiddleware
 from nomus.presentation.bot.handlers import (
     common,
     registration,
@@ -65,6 +66,9 @@ class BotApplication:
         self.dp.update.middleware(
             L10nMiddleware(settings=self.settings, storage=self.storage)
         )
+        # Подключаем middleware для проверки уведомлений при каждом взаимодействии
+        self.dp.message.middleware(NotificationMiddleware())
+        self.dp.callback_query.middleware(NotificationMiddleware())
 
     def _register_routers(self):
         # Порядок важен! Сначала более специфичные (с состояниями), потом более общие.
