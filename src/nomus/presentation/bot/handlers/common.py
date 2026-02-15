@@ -270,10 +270,9 @@ async def process_lang_select(
             await state.clear()
             log.info("Returning user %s to ordering after language selection", callback.from_user.id)
             # Импортируем здесь для избежания циклических импортов
-            from nomus.presentation.bot.handlers.ordering import _start_tariff_selection
+            from nomus.presentation.bot.handlers.ordering import _start_service_selection  # noqa: F811
 
-            # Получаем order_service из data (должен быть передан в middleware)
-            # Используем callback.message для отправки сообщений
+            # TODO: вызвать _start_service_selection с order_service из middleware
             await callback.message.answer(new_lexicon.order_continue_after_language)
             await callback.answer()
             return
