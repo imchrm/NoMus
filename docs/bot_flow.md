@@ -162,6 +162,32 @@
 
 ---
 
+## 8. Уведомления о смене статуса заказа
+
+### Push (NMservices → Telegram API)
+
+1.  **Admin** (меняет статус через `PATCH /admin/orders/{id}`)
+2.  `->` **admin/orders.update_order** → обнаружена смена статуса
+3.  `->` **_notify_status_change** (Helper)
+    *   `->` Загрузка user (telegram_id, language_code) и service (name)
+    *   `->` **TelegramNotifier.notify_order_status** (httpx → Telegram Bot API)
+    *   `->` Если доставлено: `order.notified_status = order.status` → commit
+    *   `->` Если НЕ доставлено: notified_status остаётся старым
+
+### Pull (бот → NMservices при заходе пользователя)
+
+1.  **User** (отправляет любое сообщение)
+2.  `->` **NotificationMiddleware** (runs on every message/callback)
+    *   `->` **OrderService.get_pending_notifications** (Application Service)
+        *   `->` `GET /orders/pending-notifications?telegram_id=X`
+        *   `->` NMservices: `SELECT ... FROM orders WHERE notified_status != status`
+    *   `->` Для каждого уведомления: `Bot.send_message` (локализованный шаблон)
+    *   `->` **OrderService.ack_notifications** (Application Service)
+        *   `->` `POST /orders/notifications/ack` → `notified_status = status`
+3.  `->` Далее обработка сообщения продолжается обычным flow
+
+---
+
 ## Альтернативные сценарии и Обработка ошибок
 
 ### А. Попытка заказа без регистрации

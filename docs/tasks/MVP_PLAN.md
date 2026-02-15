@@ -169,25 +169,58 @@
 
 ---
 
-### Задача 4: Telegram-бот — Уведомления о статусе заказа
+### Задача 4: Уведомления о статусе заказа (push + pull)
 
-**Описание:** Пользователь получает сообщение при изменении статуса заказа
+**Описание:** Двойная система уведомлений: push при смене статуса + pull при заходе в бот.
+
+**Архитектура:**
+- **Push (NMservices → Telegram API):** При смене статуса через `PATCH /admin/orders/{id}` NMservices отправляет сообщение пользователю напрямую через Telegram Bot API.
+- **Pull (бот → NMservices):** При каждом взаимодействии пользователя с ботом `NotificationMiddleware` проверяет `GET /orders/pending-notifications` и показывает пропущенные уведомления.
+- **Трекинг:** Поле `notified_status` в таблице `orders` отслеживает последний статус, о котором пользователь уведомлён.
 
 **Подзадачи:**
-- [ ] 4.1. Webhook/polling endpoint для получения событий об изменении статуса
-- [ ] 4.2. Сервис отправки уведомлений по telegram_id
-- [ ] 4.3. Шаблоны сообщений для разных статусов
-- [ ] 4.4. Обработка случая, когда пользователь заблокировал бота
 
-**Статусы заказа (примерные):**
-- `pending` → "Заказ принят"
-- `confirmed` → "Заказ подтверждён, мастер выезжает"
-- `in_progress` → "Мастер на месте"
-- `completed` → "Заказ выполнен. Спасибо!"
-- `cancelled` → "Заказ отменён"
+#### NMservices:
+- [x] 4.1. `OrderStatus` enum: `pending`, `confirmed`, `in_progress`, `completed`, `cancelled`
+- [x] 4.2. Поле `notified_status` в Order + Alembic-миграция
+- [x] 4.3. `TELEGRAM_BOT_TOKEN` в config.py
+- [x] 4.4. `TelegramNotifier` сервис (httpx → Telegram Bot API `sendMessage`)
+- [x] 4.5. Push в `PATCH /admin/orders/{id}` — при смене статуса отправить уведомление
+- [x] 4.6. `GET /orders/pending-notifications?telegram_id=X` — непрочитанные уведомления
+- [x] 4.7. `POST /orders/notifications/ack` — подтверждение доставки
+- [x] 4.8. `notified_status = "pending"` при создании заказа через `POST /orders`
+
+#### NoMus (бот):
+- [x] 4.9. `OrderService.get_pending_notifications()` + `ack_notifications()`
+- [x] 4.10. `NotificationMiddleware` — проверка при каждом взаимодействии
+- [x] 4.11. Локализованные шаблоны уведомлений (ru, en, uz)
+
+**Статусы заказа (`OrderStatus` enum):**
+- `pending` → (начальный, пользователь знает из flow заказа)
+- `confirmed` → "Заказ подтверждён. Мастер скоро свяжется."
+- `in_progress` → "Мастер в пути."
+- `completed` → "Заказ выполнен! Спасибо!"
+- `cancelled` → "Заказ отменён."
+
+**Flow уведомлений:**
+```
+Админ меняет статус → PATCH /admin/orders/{id}
+    → Обнаружена смена статуса
+    → TelegramNotifier.notify_order_status(telegram_id, ...)
+    → Если доставлено: notified_status = status
+    → Если НЕ доставлено: notified_status остаётся старым
+
+Пользователь заходит в бот → NotificationMiddleware
+    → GET /orders/pending-notifications?telegram_id=X
+    → Показать пропущенные уведомления
+    → POST /orders/notifications/ack → notified_status = status
+```
 
 **Критерии завершения:**
-- При смене статуса заказа пользователь получает сообщение в Telegram
+- При смене статуса заказа админом пользователь получает push-сообщение в Telegram
+- Если push не доставлен — пользователь видит уведомление при следующем заходе в бот
+- Уведомления локализованы на 3 языках (ru, en, uz)
+- Содержат: номер заказа, название услуги, стоимость, новый статус
 
 ---
 

@@ -129,3 +129,41 @@ class OrderService:
                     "message": "Stub order created",
                 }
             return None
+
+    # ─── Notifications ───────────────────────────────────────────────
+
+    async def get_pending_notifications(
+        self, telegram_id: int
+    ) -> list[dict[str, Any]]:
+        """
+        Получает непрочитанные уведомления об изменении статуса заказов.
+
+        Вызывается при каждом взаимодействии пользователя с ботом.
+        """
+        if not self.api_client:
+            return []
+        try:
+            response = await self.api_client.get(
+                "/orders/pending-notifications",
+                params={"telegram_id": telegram_id},
+            )
+            return response.get("notifications", [])
+        except Exception as e:
+            log.error("Failed to fetch pending notifications: %s", e)
+            return []
+
+    async def ack_notifications(
+        self, telegram_id: int, order_ids: list[int]
+    ) -> None:
+        """
+        Подтверждает доставку уведомлений (помечает notified_status = status).
+        """
+        if not self.api_client or not order_ids:
+            return
+        try:
+            await self.api_client.post(
+                "/orders/notifications/ack",
+                {"telegram_id": telegram_id, "order_ids": order_ids},
+            )
+        except Exception as e:
+            log.error("Failed to ack notifications: %s", e)
