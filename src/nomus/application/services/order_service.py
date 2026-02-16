@@ -130,6 +130,31 @@ class OrderService:
                 }
             return None
 
+    # ─── Active order ────────────────────────────────────────────────
+
+    async def get_active_order(
+        self, telegram_id: int
+    ) -> Optional[dict[str, Any]]:
+        """
+        Получает активный заказ пользователя (pending/confirmed/in_progress).
+
+        Returns:
+            Данные заказа или None
+        """
+        if not self.api_client:
+            return None
+        try:
+            response = await self.api_client.get(
+                "/orders/active",
+                params={"telegram_id": telegram_id},
+            )
+            if response.get("has_active_order"):
+                return response.get("order")
+            return None
+        except Exception as e:
+            log.error("Failed to fetch active order: %s", e)
+            return None
+
     # ─── Notifications ───────────────────────────────────────────────
 
     async def get_pending_notifications(

@@ -45,6 +45,29 @@ messages:
     services_unavailable: "Xizmatlar ro'yxatini yuklab bo'lmadi. Keyinroq qaytadan urinib ko'ring."
     order_creation_error: "Buyurtma yaratishda xatolik. Keyinroq qaytadan urinib ko'ring."
     no_services_available: "Hozirda mavjud xizmatlar yo'q."
+    # Main menu
+    settings_button: "Sozlamalar"
+    my_order_button: "Mening buyurtmam"
+    # Settings submenu
+    settings_title: "Sozlamalar:"
+    settings_language_button: "Til"
+    settings_profile_button: "Profil"
+    settings_about_button: "Xizmat haqida"
+    settings_back_button: "Orqaga"
+    # Profile
+    profile_title: "Sizning profilingiz:\n\nIsm: {full_name}\nTelefon: {phone}\nTil: {language}"
+    profile_no_data: "Profil ma'lumotlari topilmadi."
+    # About / Help
+    about_text: "NoMus — uyga usta chaqirish xizmati.\n\nVersiya: 0.4.0\nYordam: @nomus_support"
+    # My order
+    my_order_title: "Sizning faol buyurtmangiz:\n\nBuyurtma: #{order_id}\nXizmat: {service_name}\nNarxi: {amount} so'm\nManzil: {address}\nHolat: {status}"
+    no_active_order: "Sizda faol buyurtmalar yo'q."
+    # Status labels
+    status_pending: "Kutilmoqda"
+    status_confirmed: "Tasdiqlangan"
+    status_in_progress: "Bajarilmoqda"
+    status_completed: "Bajarildi"
+    status_cancelled: "Bekor qilindi"
   en:
     welcome: "Welcome to NoMus! Please choose an action:"
     welcome_back: "Welcome back! 👋"
@@ -86,6 +109,29 @@ messages:
     services_unavailable: "Could not load the services list. Please try again later."
     order_creation_error: "Failed to create the order. Please try again later."
     no_services_available: "No services available at the moment."
+    # Main menu
+    settings_button: "Settings"
+    my_order_button: "My order"
+    # Settings submenu
+    settings_title: "Settings:"
+    settings_language_button: "Language"
+    settings_profile_button: "Profile"
+    settings_about_button: "About"
+    settings_back_button: "Back"
+    # Profile
+    profile_title: "Your profile:\n\nName: {full_name}\nPhone: {phone}\nLanguage: {language}"
+    profile_no_data: "Profile data not found."
+    # About / Help
+    about_text: "NoMus — home service specialist booking.\n\nVersion: 0.4.0\nSupport: @nomus_support"
+    # My order
+    my_order_title: "Your active order:\n\nOrder: #{order_id}\nService: {service_name}\nPrice: {amount} sum\nAddress: {address}\nStatus: {status}"
+    no_active_order: "You have no active orders."
+    # Status labels
+    status_pending: "Pending"
+    status_confirmed: "Confirmed"
+    status_in_progress: "In progress"
+    status_completed: "Completed"
+    status_cancelled: "Cancelled"
   ru:
     welcome: "Добро пожаловать в NoMus! Выберите действие:"
     welcome_back: "С возвращением! 👋"
@@ -127,3 +173,26 @@ messages:
     services_unavailable: "Не удалось загрузить список услуг. Попробуйте позже."
     order_creation_error: "Ошибка создания заказа. Попробуйте позже."
     no_services_available: "Нет доступных услуг."
+    # Main menu
+    settings_button: "Настройки"
+    my_order_button: "Мой заказ"
+    # Settings submenu
+    settings_title: "Настройки:"
+    settings_language_button: "Язык"
+    settings_profile_button: "Профиль"
+    settings_about_button: "О сервисе"
+    settings_back_button: "Назад"
+    # Profile
+    profile_title: "Ваш профиль:\n\nИмя: {full_name}\nТелефон: {phone}\nЯзык: {language}"
+    profile_no_data: "Данные профиля не найдены."
+    # About / Help
+    about_text: "NoMus — сервис вызова мастера на дом.\n\nВерсия: 0.4.0\nПоддержка: @nomus_support"
+    # My order
+    my_order_title: "Ваш активный заказ:\n\nЗаказ: #{order_id}\nУслуга: {service_name}\nСтоимость: {amount} сум\nАдрес: {address}\nСтатус: {status}"
+    no_active_order: "У вас нет активных заказов."
+    # Status labels
+    status_pending: "Ожидает"
+    status_confirmed: "Подтверждён"
+    status_in_progress: "Выполняется"
+    status_completed: "Выполнен"
+    status_cancelled: "Отменён"

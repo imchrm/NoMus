@@ -115,6 +115,29 @@ class Messages(BaseModel):
     services_unavailable: str = ""
     order_creation_error: str = ""
     no_services_available: str = ""
+    # Main menu buttons
+    settings_button: str = ""
+    my_order_button: str = ""
+    # Settings submenu
+    settings_title: str = ""
+    settings_language_button: str = ""
+    settings_profile_button: str = ""
+    settings_about_button: str = ""
+    settings_back_button: str = ""
+    # Profile
+    profile_title: str = ""
+    profile_no_data: str = ""
+    # About / Help
+    about_text: str = ""
+    # My order
+    my_order_title: str = ""
+    no_active_order: str = ""
+    # Status labels
+    status_pending: str = ""
+    status_confirmed: str = ""
+    status_in_progress: str = ""
+    status_completed: str = ""
+    status_cancelled: str = ""
 
 
 class I18nConfig(BaseModel):

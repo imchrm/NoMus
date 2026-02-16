@@ -17,6 +17,7 @@ from nomus.application.services.auth_service import AuthService
 from nomus.application.services.language_service import get_user_language_with_fallback
 from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.presentation.bot.filters.text_equals import TextEquals
+from nomus.presentation.bot.handlers.common import get_main_kb
 from nomus.config.settings import Messages
 
 log: logging.Logger = logging.getLogger(__name__)
@@ -216,6 +217,11 @@ async def process_order_confirm(
         order_id = result.get("order_id", "—")
         await callback.message.edit_text(
             lexicon.order_created.format(order_id=order_id)
+        )
+        # Обновляем reply-клавиатуру: теперь есть активный заказ
+        await callback.message.answer(
+            lexicon.order_created.format(order_id=order_id),
+            reply_markup=get_main_kb(lexicon, is_registered=True, has_active_order=True),
         )
     else:
         await callback.message.edit_text(lexicon.order_creation_error)
