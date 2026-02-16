@@ -117,7 +117,7 @@ class Messages(BaseModel):
     no_services_available: str = ""
     # Main menu buttons
     settings_button: str = ""
-    my_order_button: str = ""
+    my_orders_button: str = ""
     # Settings submenu
     settings_title: str = ""
     settings_language_button: str = ""
@@ -129,8 +129,9 @@ class Messages(BaseModel):
     profile_no_data: str = ""
     # About / Help
     about_text: str = ""
-    # My order
-    my_order_title: str = ""
+    # My orders
+    my_orders_title: str = ""
+    my_orders_item: str = ""
     no_active_order: str = ""
     # Status labels
     status_pending: str = ""

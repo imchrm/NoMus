@@ -13,13 +13,13 @@ from nomus.presentation.bot.states.registration import RegistrationStates
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.order_service import OrderService
 from nomus.presentation.bot.handlers.ordering import _start_service_selection
-from nomus.presentation.bot.filters.text_equals import TextEquals
+from nomus.presentation.bot.filters.emoji_prefix_equals import EmojiPrefixEquals
 from nomus.config.settings import Messages
 
 router = Router()
 
 
-@router.message(TextEquals("registration_button"))
+@router.message(EmojiPrefixEquals("registration_button"))
 async def start_registration(message: Message, state: FSMContext, lexicon: Messages):
 
     # Make a button for sharing location of current user
@@ -142,6 +142,9 @@ async def process_code(
             await storage.flush()
 
             await message.answer(lexicon.registration_successful)
+
+            # Set is_registered flag in FSM for keyboard building
+            await state.update_data(is_registered=True)
 
             # Get user language from storage
             lang_code = await storage.get_user_language(message.from_user.id)
