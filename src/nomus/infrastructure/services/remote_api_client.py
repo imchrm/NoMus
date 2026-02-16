@@ -145,6 +145,7 @@ class RemoteApiClient:
         method: str,
         endpoint: str,
         json_data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Выполняет HTTP-запрос с автоматическими retry.
@@ -170,6 +171,7 @@ class RemoteApiClient:
                     method=method,
                     url=endpoint,
                     json=json_data,
+                    params=params,
                 )
                 return await self._handle_response(response)
 
@@ -191,9 +193,11 @@ class RemoteApiClient:
             message=f"Failed to connect after {self.config.max_retries} attempts: {last_exception}",
         )
 
-    async def get(self, endpoint: str) -> Dict[str, Any]:
+    async def get(
+        self, endpoint: str, params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """GET-запрос к API."""
-        return await self._request_with_retry("GET", endpoint)
+        return await self._request_with_retry("GET", endpoint, params=params)
 
     async def post(
         self, endpoint: str, data: Dict[str, Any]
