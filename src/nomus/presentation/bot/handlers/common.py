@@ -15,7 +15,6 @@ from nomus.config.bot_user_properties import BotUserProps
 from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages, Settings
 from nomus.application.services.auth_service import AuthService
-from nomus.application.services.order_service import OrderService
 from nomus.application.services.language_service import (
     get_user_language_with_fallback,
     is_valid_language,
@@ -34,14 +33,12 @@ router = Router()
 def get_main_kb(
     lexicon: Messages,
     is_registered: bool = False,
-    has_active_order: bool = False,
 ) -> ReplyKeyboardMarkup:
     """
     Создаёт контекстную главную клавиатуру.
 
     - Не зарегистрирован: [Регистрация] [Настройки]
-    - Зарегистрирован, нет заказа: [Сделать заказ] [Настройки]
-    - Зарегистрирован, есть заказ: [Сделать заказ] [Мой заказ] [Настройки]
+    - Зарегистрирован: [Сделать заказ] [Мои заказы] [Настройки]
     """
     kb: list[list[KeyboardButton]] = []
 
@@ -49,8 +46,7 @@ def get_main_kb(
         kb.append([KeyboardButton(text=lexicon.registration_button)])
     else:
         kb.append([KeyboardButton(text=lexicon.start_ordering_button)])
-        if has_active_order:
-            kb.append([KeyboardButton(text=lexicon.my_order_button)])
+        kb.append([KeyboardButton(text=lexicon.my_orders_button)])
 
     kb.append([KeyboardButton(text=lexicon.settings_button)])
 
@@ -60,6 +56,15 @@ def get_main_kb(
 # Backward-compatible alias
 def get_start_kb(lexicon: Messages, show_registration: bool = True) -> ReplyKeyboardMarkup:
     return get_main_kb(lexicon, is_registered=not show_registration)
+
+
+async def _get_is_registered(state: FSMContext, auth_service: AuthService, telegram_id: int) -> bool:
+    """Read is_registered from FSMContext; fallback to storage check."""
+    data = await state.get_data()
+    flag = data.get("is_registered")
+    if flag is not None:
+        return bool(flag)
+    return await auth_service.is_user_registered(telegram_id)
 
 
 # ─── Language selection helpers ──────────────────────────────────────
@@ -119,7 +124,6 @@ async def cmd_start(
     message: Message,
     state: FSMContext,
     auth_service: AuthService,
-    order_service: OrderService,
     storage: IUserRepository,
     settings: Settings,
 ):
@@ -144,6 +148,7 @@ async def cmd_start(
                 "registered_at": datetime.now().isoformat(),
             }
         )
+        await state.update_data(is_registered=True)
 
         lexicon = settings.messages.ru
         await message.answer(
@@ -166,14 +171,11 @@ async def cmd_start(
         lang_code = await get_user_language_with_fallback(message.from_user, storage)
         lexicon = getattr(settings.messages, lang_code)
 
-        # Проверяем наличие активного заказа для контекстного меню
-        has_active = False
-        active = await order_service.get_active_order(message.from_user.id)
-        has_active = active is not None
+        await state.update_data(is_registered=True)
 
         await message.answer(
             lexicon.welcome_back,
-            reply_markup=get_main_kb(lexicon, is_registered=True, has_active_order=has_active)
+            reply_markup=get_main_kb(lexicon, is_registered=True)
         )
         return
 
@@ -215,13 +217,15 @@ async def cmd_cancel(
     lexicon: Messages,
 ):
     """Отменяет текущее действие и возвращает в главное меню."""
-    await state.clear()
-
     if not message.from_user:
+        await state.clear()
         await message.answer(lexicon.cancel_button, reply_markup=get_main_kb(lexicon))
         return
 
-    is_registered = await auth_service.is_user_registered(message.from_user.id)
+    is_registered = await _get_is_registered(state, auth_service, message.from_user.id)
+    await state.clear()
+    if is_registered:
+        await state.update_data(is_registered=True)
 
     await message.answer(
         lexicon.cancel_button,
@@ -244,6 +248,7 @@ async def cmd_language(message: Message, lexicon: Messages):
 @router.callback_query(F.data.startswith("lang_"))
 async def process_lang_select(
     callback: CallbackQuery,
+    auth_service: AuthService,
     storage: IUserRepository,
     settings: Settings,
     state: FSMContext,
@@ -272,9 +277,16 @@ async def process_lang_select(
     if current_state == LanguageStates.waiting_for_language.state:
         data = await state.get_data()
         return_to = data.get("return_to")
+        is_registered = data.get("is_registered", False)
+
+        # Fallback: check storage if flag not in FSM
+        if not is_registered:
+            is_registered = await auth_service.is_user_registered(callback.from_user.id)
 
         if return_to == "ordering":
             await state.clear()
+            if is_registered:
+                await state.update_data(is_registered=True)
             log.info("Returning user %s to ordering after language selection", callback.from_user.id)
             from nomus.presentation.bot.handlers.ordering import _start_service_selection
 
@@ -284,6 +296,13 @@ async def process_lang_select(
 
         if return_to == "settings":
             await state.clear()
+            if is_registered:
+                await state.update_data(is_registered=True)
+            # Обновляем reply-клавиатуру с новым языком
+            await callback.message.answer(
+                new_lexicon.language_changed_prompt,
+                reply_markup=get_main_kb(new_lexicon, is_registered=is_registered),
+            )
             # Возвращаемся в настройки после смены языка
             from nomus.presentation.bot.handlers.settings import _show_settings_menu
             await _show_settings_menu(callback.message, new_lexicon)

@@ -13,7 +13,7 @@ from aiogram.fsm.context import FSMContext
 
 from nomus.config.settings import Messages, Settings
 from nomus.domain.interfaces.repo_interface import IUserRepository
-from nomus.presentation.bot.filters.text_equals import TextEquals
+from nomus.presentation.bot.filters.emoji_prefix_equals import EmojiPrefixEquals
 from nomus.presentation.bot.states.language import LanguageStates
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ async def _show_settings_menu(message: Message, lexicon: Messages) -> None:
 # ─── Entry point: reply-keyboard button ─────────────────────────────
 
 
-@router.message(TextEquals("settings_button"))
+@router.message(EmojiPrefixEquals("settings_button"))
 async def open_settings(message: Message, lexicon: Messages) -> None:
     await _show_settings_menu(message, lexicon)
 

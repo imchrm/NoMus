@@ -16,7 +16,7 @@ from nomus.application.services.order_service import OrderService
 from nomus.application.services.auth_service import AuthService
 from nomus.application.services.language_service import get_user_language_with_fallback
 from nomus.domain.interfaces.repo_interface import IUserRepository
-from nomus.presentation.bot.filters.text_equals import TextEquals
+from nomus.presentation.bot.filters.emoji_prefix_equals import EmojiPrefixEquals
 from nomus.presentation.bot.handlers.common import get_main_kb
 from nomus.config.settings import Messages
 
@@ -75,7 +75,7 @@ async def _start_service_selection(
 # ─── 1. Начало заказа ───────────────────────────────────────────────
 
 
-@router.message(TextEquals("start_ordering_button"))
+@router.message(EmojiPrefixEquals("start_ordering_button"))
 async def start_ordering(
     message: Message,
     state: FSMContext,
@@ -218,10 +218,10 @@ async def process_order_confirm(
         await callback.message.edit_text(
             lexicon.order_created.format(order_id=order_id)
         )
-        # Обновляем reply-клавиатуру: теперь есть активный заказ
+        # Обновляем reply-клавиатуру
         await callback.message.answer(
             lexicon.order_created.format(order_id=order_id),
-            reply_markup=get_main_kb(lexicon, is_registered=True, has_active_order=True),
+            reply_markup=get_main_kb(lexicon, is_registered=True),
         )
     else:
         await callback.message.edit_text(lexicon.order_creation_error)
