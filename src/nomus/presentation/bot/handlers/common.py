@@ -15,6 +15,7 @@ from nomus.config.bot_user_properties import BotUserProps
 from nomus.domain.interfaces.repo_interface import IUserRepository
 from nomus.config.settings import Messages, Settings
 from nomus.application.services.auth_service import AuthService
+from nomus.application.services.order_service import OrderService
 from nomus.application.services.language_service import (
     get_user_language_with_fallback,
     is_valid_language,
@@ -27,23 +28,41 @@ log: logging.Logger = logging.getLogger(__name__)
 router = Router()
 
 
-def get_start_kb(lexicon: Messages, show_registration: bool = True) -> ReplyKeyboardMarkup:
-    """
-    Создаёт главную клавиатуру.
+# ─── Keyboard builders ───────────────────────────────────────────────
 
-    Args:
-        lexicon: Сообщения локализации
-        show_registration: Показывать ли кнопку "Регистрация" (по умолчанию True)
-            False для уже зарегистрированных пользователей
-    """
-    kb = []
 
-    if show_registration:
+def get_main_kb(
+    lexicon: Messages,
+    is_registered: bool = False,
+    has_active_order: bool = False,
+) -> ReplyKeyboardMarkup:
+    """
+    Создаёт контекстную главную клавиатуру.
+
+    - Не зарегистрирован: [Регистрация] [Настройки]
+    - Зарегистрирован, нет заказа: [Сделать заказ] [Настройки]
+    - Зарегистрирован, есть заказ: [Сделать заказ] [Мой заказ] [Настройки]
+    """
+    kb: list[list[KeyboardButton]] = []
+
+    if not is_registered:
         kb.append([KeyboardButton(text=lexicon.registration_button)])
+    else:
+        kb.append([KeyboardButton(text=lexicon.start_ordering_button)])
+        if has_active_order:
+            kb.append([KeyboardButton(text=lexicon.my_order_button)])
 
-    kb.append([KeyboardButton(text=lexicon.start_ordering_button)])
+    kb.append([KeyboardButton(text=lexicon.settings_button)])
 
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+
+# Backward-compatible alias
+def get_start_kb(lexicon: Messages, show_registration: bool = True) -> ReplyKeyboardMarkup:
+    return get_main_kb(lexicon, is_registered=not show_registration)
+
+
+# ─── Language selection helpers ──────────────────────────────────────
 
 
 async def _send_language_selection(message: Message):
@@ -76,17 +95,6 @@ async def ensure_user_language(
     Проверяет наличие языка пользователя.
     Если язык отсутствует — показывает выбор языка и возвращает None.
     Если язык есть — возвращает language_code.
-
-    Решение 2: Запрашивать язык при отсутствии.
-
-    Args:
-        message: Сообщение пользователя
-        storage: Репозиторий пользователей
-        state: FSM контекст
-        return_to: Куда вернуться после выбора языка (например, "ordering")
-
-    Returns:
-        Код языка если найден, None если показан выбор языка
     """
     if not message.from_user:
         return None
@@ -95,7 +103,6 @@ async def ensure_user_language(
     if is_valid_language(lang_code):
         return lang_code
 
-    # Язык не найден — показываем выбор
     log.info("Language not found for user %s, showing selection", message.from_user.id)
     await state.set_state(LanguageStates.waiting_for_language)
     if return_to:
@@ -104,11 +111,15 @@ async def ensure_user_language(
     return None
 
 
+# ─── /start command ──────────────────────────────────────────────────
+
+
 @router.message(CommandStart())
 async def cmd_start(
     message: Message,
     state: FSMContext,
     auth_service: AuthService,
+    order_service: OrderService,
     storage: IUserRepository,
     settings: Settings,
 ):
@@ -123,14 +134,13 @@ async def cmd_start(
     if settings.env.is_development() and settings.skip_registration:
         log.warning("DEV MODE: SKIP_REGISTRATION is enabled, creating mock registered user")
 
-        # Создаём "фейкового" зарегистрированного пользователя
         await storage.save_or_update_user(
             telegram_id=message.from_user.id,
             data={
                 "username": message.from_user.username,
                 "full_name": message.from_user.full_name,
                 "language_code": "ru",
-                "phone_number": "+998901234567",  # MOCK номер
+                "phone_number": "+998901234567",
                 "registered_at": datetime.now().isoformat(),
             }
         )
@@ -138,15 +148,13 @@ async def cmd_start(
         lexicon = settings.messages.ru
         await message.answer(
             lexicon.dev_mode_skip_registration,
-            reply_markup=get_start_kb(lexicon, show_registration=False)
+            reply_markup=get_main_kb(lexicon, is_registered=True)
         )
         return
 
     # ===================================================================
     # ОБЫЧНЫЙ FLOW: Проверка регистрации
     # ===================================================================
-
-    # Проверяем, есть ли пользователь в storage
     user_data = await storage.get_user_by_telegram_id(message.from_user.id)
 
     # ===================================================================
@@ -155,15 +163,17 @@ async def cmd_start(
     if user_data and user_data.get("phone_number"):
         log.info("Registered user %s returned", message.from_user.id)
 
-        # Решение 3: Получаем язык пользователя с fallback на Telegram API
         lang_code = await get_user_language_with_fallback(message.from_user, storage)
-
         lexicon = getattr(settings.messages, lang_code)
 
-        # Приветствие "С возвращением!"
+        # Проверяем наличие активного заказа для контекстного меню
+        has_active = False
+        active = await order_service.get_active_order(message.from_user.id)
+        has_active = active is not None
+
         await message.answer(
             lexicon.welcome_back,
-            reply_markup=get_start_kb(lexicon, show_registration=False)
+            reply_markup=get_main_kb(lexicon, is_registered=True, has_active_order=has_active)
         )
         return
 
@@ -172,61 +182,63 @@ async def cmd_start(
     # ===================================================================
     log.info("New or unregistered user %s", message.from_user.id)
 
-    # Решение 3: Определяем язык из Telegram API с fallback
     lang_code = message.from_user.language_code
     if lang_code not in SUPPORTED_LANGUAGES:
-        lang_code = "ru"  # Fallback на русский
+        lang_code = "ru"
 
-    # Создаём "черновик" пользователя с базовыми данными
     await storage.save_or_update_user(
         telegram_id=message.from_user.id,
         data={
             "username": message.from_user.username,
             "full_name": message.from_user.full_name,
             "language_code": lang_code,
-            # phone_number НЕ сохраняем - пользователь ещё не зарегистрирован
         }
     )
 
-    # Если язык определён из Telegram, показываем информационное сообщение
     if message.from_user.language_code in SUPPORTED_LANGUAGES:
         lexicon = getattr(settings.messages, lang_code)
         await message.answer(
             lexicon.language_detected.format(lang_code=lang_code.upper())
         )
 
-    # Показываем выбор языка
     await _send_language_selection(message)
 
 
-# @router.message(LexiconFilter('cancel_button'))
+# ─── /cancel command ─────────────────────────────────────────────────
+
+
 @router.message(Command("cancel"))
 async def cmd_cancel(
     message: Message,
     state: FSMContext,
     auth_service: AuthService,
-    lexicon: Messages
+    lexicon: Messages,
 ):
     """Отменяет текущее действие и возвращает в главное меню."""
     await state.clear()
 
     if not message.from_user:
-        await message.answer(lexicon.cancel_button, reply_markup=get_start_kb(lexicon))
+        await message.answer(lexicon.cancel_button, reply_markup=get_main_kb(lexicon))
         return
 
-    # Проверяем, зарегистрирован ли пользователь
     is_registered = await auth_service.is_user_registered(message.from_user.id)
 
     await message.answer(
         lexicon.cancel_button,
-        reply_markup=get_start_kb(lexicon, show_registration=not is_registered)
+        reply_markup=get_main_kb(lexicon, is_registered=is_registered)
     )
+
+
+# ─── /language command ───────────────────────────────────────────────
 
 
 @router.message(Command("language"))
 async def cmd_language(message: Message, lexicon: Messages):
     """Displays language selection buttons."""
     await _send_language_selection(message)
+
+
+# ─── Language callback ───────────────────────────────────────────────
 
 
 @router.callback_query(F.data.startswith("lang_"))
@@ -238,9 +250,6 @@ async def process_lang_select(
 ):
     """
     Saves the selected language and handles return to interrupted action.
-
-    Решение 2: Если пользователь был перенаправлен сюда из другого действия
-    (например, из ordering), возвращаем его обратно после выбора языка.
     """
     if not callback.from_user:
         return
@@ -249,7 +258,6 @@ async def process_lang_select(
 
     log.info("Language selected: %s", _language_code)
 
-    # Save the language choice to our storage
     await storage.update_user_language(
         telegram_id=callback.from_user.id, language_code=_language_code
     )
@@ -259,25 +267,29 @@ async def process_lang_select(
     new_lexicon = getattr(settings.messages, _language_code)
     await callback.message.edit_text(new_lexicon.language_changed_prompt)
 
-    # Проверяем, нужно ли вернуться к прерванному действию (Решение 2)
+    # Проверяем, нужно ли вернуться к прерванному действию
     current_state = await state.get_state()
     if current_state == LanguageStates.waiting_for_language.state:
         data = await state.get_data()
         return_to = data.get("return_to")
 
         if return_to == "ordering":
-            # Очищаем состояние и возвращаемся к оформлению заказа
             await state.clear()
             log.info("Returning user %s to ordering after language selection", callback.from_user.id)
-            # Импортируем здесь для избежания циклических импортов
-            from nomus.presentation.bot.handlers.ordering import _start_service_selection  # noqa: F811
+            from nomus.presentation.bot.handlers.ordering import _start_service_selection
 
-            # TODO: вызвать _start_service_selection с order_service из middleware
             await callback.message.answer(new_lexicon.order_continue_after_language)
             await callback.answer()
             return
 
-        # Другие return_to могут быть добавлены здесь
+        if return_to == "settings":
+            await state.clear()
+            # Возвращаемся в настройки после смены языка
+            from nomus.presentation.bot.handlers.settings import _show_settings_menu
+            await _show_settings_menu(callback.message, new_lexicon)
+            await callback.answer()
+            return
+
         await state.clear()
 
     # Обычный flow — показываем User Agreement
@@ -319,13 +331,10 @@ async def process_agreement(callback: CallbackQuery, settings: Settings):
     new_lexicon = getattr(settings.messages, _language_code)
 
     assert isinstance(callback.message, Message)
-    # Delete the agreement message or edit it to remove buttons?
-    # Let's delete it to keep chat clean, or just edit text.
     await callback.message.delete()
 
-    # Send welcome message with main menu
     await callback.message.answer(
-        new_lexicon.welcome, reply_markup=get_start_kb(new_lexicon)
+        new_lexicon.welcome, reply_markup=get_main_kb(new_lexicon)
     )
 
     await callback.answer()
