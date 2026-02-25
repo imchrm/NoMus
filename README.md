@@ -1,324 +1,245 @@
 # NoMus
 
-**Telegram-бот для заказа услуг населению**
+**Telegram-бот для заказа услуг массажа на дом**
 
-NoMus — это Telegram-бот на базе aiogram 3.x, интегрированный с backend-системой NMservices для обработки регистрации пользователей и создания заказов.
-
----
-
-## 🏗️ Архитектура
-
-### Компоненты экосистемы
-
-```
-┌──────────────────────────────────────┐
-│ NoMus Bot (Telegram)                 │
-│  ├─ MemoryStorage (FSM cache)        │ ← Временный кеш для регистрации
-│  └─ RemoteApiClient                  │ ← HTTP клиент для NMservices
-│     ├─ POST /users/register          │
-│     └─ POST /orders                  │
-└──────────────────────────────────────┘
-            ↓ HTTP POST
-┌──────────────────────────────────────┐
-│ NMservices (Backend)                 │
-│  ├─ FastAPI + uvicorn                │
-│  └─ PostgreSQL Database              │ ← Основная база данных
-│     ├─ users table                   │
-│     └─ orders table                  │
-└──────────────────────────────────────┘
-```
-
-### Ключевые особенности
-
-- **NoMus Bot** - Telegram-бот (aiogram 3.x) для взаимодействия с пользователями
-- **NMservices** - Backend сервер (FastAPI + PostgreSQL) для обработки данных
-- **MemoryStorage** - Локальный кеш для FSM states и промежуточных данных регистрации
-- **RemoteApiClient** - HTTP клиент для интеграции с NMservices API
-
-**Важно**: Бот **НЕ подключается к PostgreSQL напрямую**. Вся работа с базой данных происходит через REST API NMservices.
+NoMus — Telegram-бот (aiogram 3.x), интегрированный с backend NMservices (FastAPI + PostgreSQL). Пользователь регистрируется, выбирает услугу из каталога, указывает адрес и получает уведомления о статусе заказа. Администратор управляет услугами, заказами и пользователями через Admin Panel (React).
 
 ---
 
-## 📁 Структура проекта
+## Функционал
+
+### Для пользователя (Telegram-бот)
+
+| Сценарий | Описание |
+|----------|----------|
+| **Регистрация** | Выбор языка (🇺🇿 🇬🇧 🇷🇺) → Пользовательское соглашение → Геолокация → Телефон (share contact) → SMS-код → Готово |
+| **Создание заказа** | 🛒 Сделать заказ → Каталог услуг из API (inline-кнопки) → Ввод адреса → Summary + [Подтвердить] / [Отмена] → «Заказ #N создан!» |
+| **Мои заказы** | 📋 Мои заказы → Текстовый список активных заказов (номер, услуга, сумма, адрес, статус) |
+| **Настройки** | ⚙️ Настройки → Язык / Профиль / О сервисе |
+| **Уведомления** | Push при смене статуса заказа + Pull при заходе в бот (пропущенные уведомления) |
+
+**Главная клавиатура:**
+```
+Незарегистрированный:       Зарегистрированный:
+┌─────────────────────┐    ┌─────────────────────┐
+│ Регистрация         │    │ 🛒 Сделать заказ     │
+│ ⚙️ Настройки        │    │ 📋 Мои заказы        │
+└─────────────────────┘    │ ⚙️ Настройки         │
+                           └─────────────────────┘
+```
+
+**Команды:** `/start`, `/cancel`, `/language`
+
+### Для администратора (Admin Panel)
+
+| Раздел | Возможности |
+|--------|-------------|
+| **Dashboard** | Статистика: пользователи, заказы, услуги; заказы по статусам |
+| **Услуги** | CRUD + деактивация (soft delete), фильтрация, сортировка |
+| **Заказы** | CRUD, фильтр по статусу/дате/user_id, смена статуса → push-уведомление |
+| **Пользователи** | Список, поиск по ID/телефону, expand-панель с заказами |
+
+---
+
+## Архитектура
+
+```
+┌──────────────────────────────────────────┐
+│ NoMus Bot (Telegram)                     │
+│  ├─ DDD: Domain → Application →         │
+│  │       Infrastructure → Presentation   │
+│  ├─ FSM (aiogram): регистрация, заказ    │
+│  ├─ L10nMiddleware: ru / uz / en         │
+│  ├─ NotificationMiddleware: pull-on-visit│
+│  └─ RemoteApiClient (httpx)              │
+│     ├─ POST /users/register              │
+│     ├─ GET  /services                    │
+│     ├─ POST /orders                      │
+│     ├─ GET  /orders/active               │
+│     ├─ GET  /orders/pending-notifications│
+│     └─ POST /orders/notifications/ack    │
+└──────────────┬───────────────────────────┘
+               │ HTTP (X-API-Key)
+┌──────────────▼───────────────────────────┐
+│ NMservices (Backend)                     │
+│  ├─ FastAPI + uvicorn                    │
+│  ├─ SQLAlchemy 2.0 (async) + Alembic    │
+│  ├─ TelegramNotifier (push → Bot API)   │
+│  └─ PostgreSQL                           │
+│     ├─ users                             │
+│     ├─ services                          │
+│     └─ orders (status, notified_status)  │
+└──────────────▲───────────────────────────┘
+               │ HTTP (X-Admin-Key)
+┌──────────────┴───────────────────────────┐
+│ NMservices-Admin (React)                 │
+│  ├─ react-admin + Vite + TypeScript      │
+│  └─ Dashboard, Services, Orders, Users   │
+└──────────────────────────────────────────┘
+```
+
+**Важно**: Бот **не подключается к PostgreSQL напрямую**. Вся работа с БД — через REST API NMservices.
+
+---
+
+## Структура проекта
 
 ```
 NoMus/
 ├── config/
-│   ├── environments/          # Конфигурации окружений
-│   │   ├── development.yaml
-│   │   ├── development-remote.yaml
+│   ├── environments/              # Конфигурации окружений
+│   │   ├── development.yaml       #   stub-сервисы, memory storage
+│   │   ├── development-remote.yaml#   remote API, memory cache
 │   │   ├── staging.yaml
 │   │   └── production.yaml
-│   └── localization/          # Локализация (ru, uz, en)
-│       └── messages.yaml
+│   └── localization/
+│       └── messages.yaml          # ~45 ключей × 3 языка
 │
-├── docs/                      # Документация
-│   ├── bot_flow.md           # Детальный поток работы бота
-│   ├── DDD_Analysis.md       # Анализ DDD архитектуры
-│   ├── QUICKSTART_DB_TESTING.md  # Быстрый старт для отладки
-│   └── TEST_RESULTS.md       # Результаты тестирования API
+├── docs/
+│   ├── bot_flow.md                # Детальный программный flow бота
+│   ├── tasks/MVP_PLAN.md          # Глобальный план + текущий функционал
+│   ├── DDD_Analysis.md            # Анализ DDD архитектуры
+│   └── ...
 │
-├── scripts/                   # Скрипты запуска
+├── src/nomus/
+│   ├── main.py                    # Точка входа (BotApplication)
+│   ├── config/                    # Settings, Messages, Environment
+│   ├── domain/                    # Entities (User, Order), Interfaces
+│   ├── application/               # Services (Auth, Order, Language)
+│   ├── infrastructure/            # Storage (Memory, Remote), API client, SMS/Payment stubs
+│   └── presentation/
+│       └── bot/
+│           ├── handlers/          # common, registration, ordering, settings, my_order
+│           ├── states/            # LanguageStates, RegistrationStates, OrderStates
+│           ├── middlewares/       # L10n, Notification, DI
+│           └── filters/           # EmojiPrefixEquals, TextEquals
 │
-├── src/nomus/                 # Основной код
-│   ├── main.py               # Точка входа
-│   ├── config/               # Конфигурация
-│   ├── domain/               # Доменный слой (entities, interfaces)
-│   ├── application/          # Бизнес-логика (services)
-│   ├── infrastructure/       # Внешние сервисы (API, DB)
-│   └── presentation/         # Telegram bot handlers
-│
-├── tests/                     # Тесты
-│   ├── manual/               # Ручные тесты
-│   │   ├── test_api_connection.py
-│   │   ├── test_env_check.py
-│   │   └── test_settings_load.py
-│   └── ...                   # Юнит-тесты
-│
-├── .env.example              # Шаблон конфигурации
-├── pyproject.toml            # Зависимости (Poetry)
-└── CLAUDE.md                 # Полная документация для разработки
+├── tests/
+├── .env.example
+├── pyproject.toml                 # Poetry
+└── CLAUDE.md
 ```
 
 ---
 
-## 🚀 Быстрый старт
+## Быстрый старт
 
-### 1. Клонирование репозитория
+### 1. Установка
 
 ```bash
 git clone https://github.com/imchrm/NoMus.git
 cd NoMus
-```
-
-### 2. Установка Poetry
-
-Официальный [гайд по установке](https://python-poetry.org/docs/#installation).
-
-### 3. Установка зависимостей
-
-```bash
-# Настройка виртуального окружения внутри проекта
 poetry config virtualenvs.in-project true
-
-# Установка зависимостей
 poetry install
 ```
 
-### 4. Настройка окружения
+### 2. Настройка окружения
 
-1. Скопируйте `.env.example` в `.env`:
 ```bash
 cp .env.example .env
 ```
 
-2. Отредактируйте `.env`:
+Отредактируйте `.env`:
 ```bash
-# Выбор окружения
-ENV=development-remote
-
-# Токен Telegram бота (получить у @BotFather)
-BOT_TOKEN=your_bot_token_here
-
-# NMservices API (адрес backend сервера)
+ENV=development-remote          # или development (без API)
+BOT_TOKEN=your_bot_token_here   # от @BotFather
 REMOTE_API_BASE_URL=http://192.168.1.191:8000
 REMOTE_API_KEY=your_api_key_here
-
-# Опционально: пропуск регистрации для быстрого тестирования
-SKIP_REGISTRATION=False
+SKIP_REGISTRATION=False         # True — пропустить регистрацию для тестирования
 ```
 
-### 5. Запуск бота
+### 3. Запуск
 
 ```bash
-# Development с локальными stub-сервисами
+# С локальными stub-сервисами (без NMservices)
 ENV=development poetry run python -m nomus.main
 
-# Development с удалённым NMservices API
+# С удалённым NMservices API
 ENV=development-remote poetry run python -m nomus.main
-
-# Production
-ENV=production poetry run python -m nomus.main
 ```
 
 ---
 
-## 🌍 Окружения
+## Окружения
 
-Проект поддерживает несколько режимов работы:
+| Режим | Storage | SMS | Payment | Logging |
+|-------|---------|-----|---------|---------|
+| `development` | MemoryStorage | Stub (код 1234) | Stub | DEBUG |
+| `development-remote` | RemoteStorage → API | Remote | Remote | DEBUG |
+| `staging` | RemoteStorage → API | Real (test) | Real (test) | INFO |
+| `production` | RemoteStorage → API | Real | Real | WARNING + Sentry |
 
-### `development` - Локальная разработка
-- **Database**: MemoryStorage (in-memory кеш)
-- **SMS**: Stub (логи в консоль, фиксированный код `1234`)
-- **Payment**: Stub (мгновенное подтверждение)
-- **Logging**: DEBUG
-
-**Использование**: Быстрая разработка без внешних зависимостей.
-
-### `development-remote` - Разработка с удалённым API
-- **Database**: MemoryStorage (in-memory кеш)
-- **SMS**: Remote (через NMservices API)
-- **Payment**: Remote (через NMservices API)
-- **Logging**: DEBUG
-
-**Использование**: Тестирование интеграции с реальным backend.
-
-### `staging` - Тестовая среда
-- **Database**: MemoryStorage (in-memory кеш)
-- **SMS**: Real (Eskiz, test mode)
-- **Payment**: Real (Payme, test mode)
-- **Logging**: INFO
-
-**Использование**: Тестирование перед production.
-
-### `production` - Боевой режим
-- **Database**: MemoryStorage (in-memory кеш)
-- **SMS**: Real (Eskiz, live mode)
-- **Payment**: Real (Payme, live mode)
-- **Logging**: WARNING
-- **Monitoring**: Sentry включён
-
-**Использование**: Работа с реальными пользователями.
+Каждое окружение имеет YAML файл в `config/environments/`.
 
 ---
 
-## 🔧 Конфигурация
+## Конфигурация
 
 ### Переменные окружения (.env)
 
-```bash
-# Выбор окружения
-ENV=development-remote
-
-# Debug режим
-DEBUG=True
-
-# Telegram Bot
-BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-
-# Remote API (NMservices)
-REMOTE_API_BASE_URL=http://your-backend:8000
-REMOTE_API_KEY=your_api_key
-
-# Development опции
-SKIP_REGISTRATION=False  # Пропустить регистрацию для быстрого тестирования
-
-# Monitoring (production)
-SENTRY_DSN=https://your-sentry-dsn
-```
+| Переменная | Назначение |
+|------------|------------|
+| `ENV` | Окружение: `development`, `development-remote`, `staging`, `production` |
+| `DEBUG` | Debug-режим |
+| `BOT_TOKEN` | Токен Telegram бота |
+| `REMOTE_API_BASE_URL` | Адрес NMservices API |
+| `REMOTE_API_KEY` | Ключ авторизации API |
+| `SKIP_REGISTRATION` | Пропуск регистрации для тестирования |
+| `SENTRY_DSN` | DSN для мониторинга ошибок (production) |
 
 ### YAML конфигурации
 
-Каждое окружение имеет свой YAML файл в `config/environments/`:
-- Параметры логирования
-- Тип хранилища данных
-- Конфигурация сервисов (SMS, Payment)
-- Настройки бота и API
+Файлы в `config/environments/` определяют: тип хранилища, сервисы (SMS, Payment), параметры логирования, настройки бота и API.
 
 ---
 
-## 🧪 Тестирование
-
-### Проверка окружения
+## Тестирование
 
 ```bash
+# Проверка окружения
 poetry run python tests/manual/test_env_check.py
-```
 
-### Тест подключения к NMservices API
-
-```bash
+# Тест подключения к NMservices API
 poetry run python tests/manual/test_api_connection.py
-```
 
-**Тест проверяет**:
-- Загрузку конфигурации
-- Подключение к NMservices API
-- Регистрацию пользователя (`POST /users/register`)
-- Создание заказа (`POST /orders`)
-
-### Запуск всех тестов
-
-```bash
+# Все тесты
 pytest tests/
 ```
 
 ---
 
-## 📚 Документация
+## Локализация
 
-- **[CLAUDE.md](./CLAUDE.md)** - Полная документация для разработки с Claude Code
-- **[docs/bot_flow.md](./docs/bot_flow.md)** - Детальный flow работы бота
-- **[docs/DDD_Analysis.md](./docs/DDD_Analysis.md)** - Анализ DDD архитектуры
-- **[docs/QUICKSTART_DB_TESTING.md](./docs/QUICKSTART_DB_TESTING.md)** - Быстрый старт для отладки API
-- **[docs/TEST_RESULTS.md](./docs/TEST_RESULTS.md)** - Результаты интеграционных тестов
+3 языка: 🇷🇺 Русский (ru), 🇺🇿 Узбекский (uz), 🇬🇧 Английский (en)
+
+Все тексты — в `config/localization/messages.yaml` (~45 ключей). Pydantic-модель `Messages` валидирует полноту переводов.
 
 ---
 
-## 🌐 Локализация
+## Технологический стек
 
-Бот поддерживает три языка:
-- 🇷🇺 Русский (ru)
-- 🇺🇿 Узбекский (uz)
-- 🇬🇧 Английский (en)
-
-Все тексты хранятся в `config/localization/messages.yaml`.
-
----
-
-## 🛠️ Технологический стек
-
-- **Python 3.11+**
-- **aiogram 3.x** - Telegram Bot Framework
-- **httpx** - Асинхронный HTTP-клиент для NMservices API
-- **pydantic-settings** - Управление конфигурацией
-- **pytest** - Тестирование
-- **Poetry** - Управление зависимостями
+- **Python 3.11+**, **aiogram 3.x** — Telegram Bot Framework
+- **httpx** — Асинхронный HTTP-клиент
+- **pydantic-settings** — Конфигурация с валидацией
+- **Poetry** — Управление зависимостями
+- **pytest** — Тестирование
 
 ---
 
-## 🔄 Workflow разработки
+## Документация
 
-1. **Создайте feature branch**:
-```bash
-git checkout -b feature/your-feature-name
-```
-
-2. **Внесите изменения** и протестируйте локально
-
-3. **Запустите тесты**:
-```bash
-pytest tests/
-```
-
-4. **Создайте коммит**:
-```bash
-git add .
-git commit -m "feat: your feature description"
-```
-
-5. **Создайте Pull Request** в `main` branch
+- [CLAUDE.md](./CLAUDE.md) — Документация для разработки с Claude Code
+- [docs/bot_flow.md](./docs/bot_flow.md) — Программный flow бота (от /start до создания заказа)
+- [docs/tasks/MVP_PLAN.md](./docs/tasks/MVP_PLAN.md) — Глобальный план MVP + текущий функционал системы
+- [docs/DDD_Analysis.md](./docs/DDD_Analysis.md) — Анализ DDD архитектуры
 
 ---
 
-## 📝 Версия
-
-**Текущая версия**: смотри в `pyproject.toml`
-
-
----
-
-## 👥 Контакты
+## Контакты
 
 - **GitHub**: [imchrm/NoMus](https://github.com/imchrm/NoMus)
 - **Issues**: [Сообщить о проблеме](https://github.com/imchrm/NoMus/issues)
 
 ---
 
-## 📄 Лицензия
-
-[Информация о лицензии]
-
----
-
-**Последнее обновление**: 2026-01-13
+**Последнее обновление**: 2026-02-25
