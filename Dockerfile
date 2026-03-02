@@ -14,6 +14,8 @@ RUN poetry install --no-interaction --no-ansi --only main --no-root
 COPY config/ ./config/
 COPY src/ ./src/
 
+RUN poetry install --no-interaction --no-ansi --only main
+
 ENV ENV=production
 
 CMD ["python", "-m", "nomus.main"]
