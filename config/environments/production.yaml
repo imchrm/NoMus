@@ -7,15 +7,20 @@ logging:
 database:
   type: memory  # Bot uses in-memory cache; actual DB is in NMservices
 
+# Bot delegates SMS/payment to NMservices backend via remote API
 services:
   sms:
-    type: real
-    provider: "eskiz"
-    test_mode: false
+    type: remote
   payment:
-    type: real
-    provider: "payme"
-    test_mode: false
+    type: remote
+
+remote_api:
+  enabled: true
+  base_url: "${REMOTE_API_BASE_URL}"
+  api_key: "${REMOTE_API_KEY}"
+  timeout: 30.0
+  max_retries: 3
+  retry_delay: 1.0
 
 bot:
   polling_timeout: 60
