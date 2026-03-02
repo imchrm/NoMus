@@ -13,5 +13,6 @@ tests/
 docs/
 scripts/
 *.md
+!README.md
 .vscode/
 .idea/
