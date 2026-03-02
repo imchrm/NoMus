@@ -13,6 +13,7 @@ RUN poetry install --no-interaction --no-ansi --only main --no-root
 
 COPY config/ ./config/
 COPY src/ ./src/
+COPY README.md ./
 
 RUN poetry install --no-interaction --no-ansi --only main
 
