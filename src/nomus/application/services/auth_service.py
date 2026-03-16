@@ -8,12 +8,6 @@ class AuthService:
         self.user_repo: IUserRepository = user_repo
         self.sms_service: ISmsService = sms_service
 
-    async def send_verification_code(self, phone: str) -> str:
-        # In a real app, generate a random code. For PoC, use fixed '1234'
-        code = "1234"
-        await self.sms_service.send_sms(phone, code)
-        return code
-
     async def register_user(self, phone: str) -> Optional[int]:
         """
         Регистрирует пользователя и возвращает server_user_id.
@@ -24,8 +18,7 @@ class AuthService:
         Returns:
             server_user_id для remote-режима или None для stub-режима
         """
-        code = "1234"
-        success = await self.sms_service.send_sms(phone, code)
+        success = await self.sms_service.send_sms(phone, "")
 
         if success:
             # Для remote-режима получаем server_user_id
