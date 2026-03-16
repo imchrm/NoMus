@@ -59,39 +59,6 @@ async def process_location(message: Message, state: FSMContext, lexicon: Message
 
 @router.message(RegistrationStates.waiting_for_phone, F.contact)
 async def process_phone(
-    message: Message, state: FSMContext, auth_service: AuthService, lexicon: Messages
-):
-    # TODO: Check if you are guaranteed to receive a `phone_number` after `request_contact`
-    #
-    # Telegram API(https://core.telegram.org/bots/api):
-    # KeyboardButton:
-    # Field: https://core.telegram.org/bots/api
-    # Type: Boolean
-    # Description: Optional. If True, the user's phone number will be sent as a contact when the button is pressed. Available in private chats only.
-    # if message.contact is None:
-    #     await message.answer("Пожалуйста, отправьте ваш контакт.")
-    #     return
-
-    # First variant
-    # if message.contact is None:
-    #     assert False, "message.contact should not be None here"
-    assert message.contact is not None  # assertion for Pylance, second variant
-    phone = message.contact.phone_number
-
-    await state.update_data(phone=phone)
-
-    # Send verification code
-    await auth_service.send_verification_code(phone)
-
-    await message.answer(
-        lexicon.code_sent_prompt,
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    await state.set_state(RegistrationStates.waiting_for_sms_code)
-
-
-@router.message(RegistrationStates.waiting_for_sms_code)
-async def process_code(
     message: Message,
     state: FSMContext,
     auth_service: AuthService,
@@ -100,69 +67,50 @@ async def process_code(
     lexicon: Messages,
 ):
     if not message.from_user:
-        # We cannot process a message without a user (for example, from a channel)
         return
 
-    if not message.text:
-        await message.answer(lexicon.send_code_as_text_prompt)
-        return
+    assert message.contact is not None  # assertion for Pylance
+    phone = message.contact.phone_number
 
-    code = message.text
-    if not code.isdigit() or len(code) != 4:
-        await message.answer(lexicon.enter_4_digits_prompt)
-        return
+    data = await state.get_data()
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
 
-    # Verify code (simplified for PoC: always check against '1234')
-    if code == "1234":
-        data = await state.get_data()
-        phone = data.get("phone")
-        latitude = data.get("latitude")
-        longitude = data.get("longitude")
+    # Регистрируем пользователя через AuthService и получаем server_user_id
+    server_user_id = await auth_service.register_user(phone)
 
-        if phone:
-            # Регистрируем пользователя через AuthService и получаем server_user_id
-            server_user_id = await auth_service.register_user(phone)
+    user_data = User(
+        id=message.from_user.id,
+        telegram_id=message.from_user.id,
+        phone_number=phone,
+        registered_at=datetime.now(),
+        latitude=latitude,
+        longitude=longitude,
+        server_user_id=server_user_id,
+    ).model_dump()
 
-            user_data = User(
-                id=message.from_user.id,
-                telegram_id=message.from_user.id,
-                phone_number=phone,
-                registered_at=datetime.now(),
-                latitude=latitude,
-                longitude=longitude,
-                server_user_id=server_user_id,  # Сохраняем ID с сервера NMservices
-            ).model_dump()  # Преобразуем Pydantic модель в словарь для сохранения
+    # Обновляем пользователя в локальном хранилище
+    await auth_service.user_repo.save_or_update_user(
+        message.from_user.id, user_data
+    )
 
-            # Обновляем пользователя в локальном хранилище
-            await auth_service.user_repo.save_or_update_user(
-                message.from_user.id, user_data
-            )
+    # Синхронизируем данные с remote storage (если используется)
+    await storage.flush()
 
-            # Синхронизируем данные с remote storage (если используется)
-            await storage.flush()
+    await message.answer(
+        lexicon.registration_successful,
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
-            await message.answer(lexicon.registration_successful)
+    # Set is_registered flag in FSM for keyboard building
+    await state.update_data(is_registered=True)
 
-            # Set is_registered flag in FSM for keyboard building
-            await state.update_data(is_registered=True)
+    # Get user language from storage
+    lang_code = await storage.get_user_language(message.from_user.id)
+    if lang_code is None:
+        raise ValueError("User language not found in storage.")
 
-            # Get user language from storage
-            lang_code = await storage.get_user_language(message.from_user.id)
-            if lang_code is None:
-                raise ValueError("User language not found in storage.")
-
-            # --- Transition to the ordering flow ---
-            # We don't know the user's language yet, so we use the default.
-            # TODO: Возможно нужно меньше образаться к внешним ресурсам для получения пользовательского языка
-            # тогда получение языка можно сделать синхронным
-            lang_code = await storage.get_user_language(message.from_user.id)
-            # TODO: Проверить утверждение, пересмотреть логику!
-            assert lang_code is not None  # утверждаем, что язык точно не None
-            await _start_service_selection(
-                message, state, order_service, lexicon
-            )
-
-        else:
-            await message.answer(lexicon.phone_number_error)
-    else:
-        await message.answer(lexicon.invalid_code_error)
+    # --- Transition to the ordering flow ---
+    await _start_service_selection(
+        message, state, order_service, lexicon
+    )
