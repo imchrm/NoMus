@@ -92,20 +92,9 @@
 
 7.  **Router** (ловит `F.contact` в состоянии `waiting_for_phone`)
 8.  `->` **registration.process_phone** (Handler)
-    *   `->` `FSMContext.update_data` (Временное сохранение телефона)
-    *   `->` **AuthService.send_verification_code** (Application Service)
-        *   `->` **SmsServiceRemote.send_sms** (Infrastructure)
-            *   `->` **POST /users/register** (Remote API) — Первичная инициализация пользователя на сервере
-    *   `->` `Message.answer` ("Код подтверждения отправлен...", удаление клавиатуры)
-    *   `->` `FSMContext.set_state(RegistrationStates.waiting_for_sms_code)`
-9.  `->` **User** (вводит код "1234")
-
-10. **Router** (ловит текст в состоянии `waiting_for_sms_code`)
-11. `->` **registration.process_code** (Handler)
-    *   `->` Проверка формата кода и соответствия "1234"
     *   `->` **AuthService.register_user** (Application Service)
         *   `->` **SmsServiceRemote.send_sms** (Infrastructure)
-            *   `->` **POST /users/register** (Remote API) — Повторный вызов/верификация
+            *   `->` **POST /users/register** (Remote API) — Регистрация пользователя на сервере
             *   `->` Получение `user_id` от сервера (server_id)
         *   `->` Возврат `server_user_id`
     *   `->` Создание сущности **User** (сбор данных: `phone`, `geo`, `server_user_id`)
@@ -113,7 +102,7 @@
         *   `->` Сохранение в локальный кеш (MemoryStorage)
     *   `->` **RemoteStorage.flush** (Infrastructure)
         *   `->` Синхронизация всех изменений ("dirty" records) с удаленным сервером (через `RemoteApiClient`)
-    *   `->` `Message.answer` ("Регистрация успешно завершена!")
+    *   `->` `Message.answer` ("Регистрация успешно завершена!", удаление клавиатуры)
     *   `->` `FSMContext.update_data(is_registered=True)` (Установка FSM-флага)
     *   **Переход к заказу:**
         *   `->` **ordering._start_service_selection** (Вспомогательная функция)
@@ -231,17 +220,7 @@
     *   `->` `Message.answer` (Отправка сообщения: "Для заказа необходимо зарегистрироваться")
 3.  `->` **User** (остается в главном меню, должен нажать "Регистрация")
 
-### Б. Ошибка ввода кода подтверждения
-
-Ситуация: Пользователь вводит неверный код SMS.
-
-1.  **User** (вводит "0000" в состоянии `waiting_for_sms_code`)
-2.  `->` **registration.process_code** (Handler)
-    *   `->` Проверка кода ("0000" != "1234")
-    *   `->` `Message.answer` ("Неверный код")
-3.  `->` **User** (остается в состоянии `waiting_for_sms_code`, может повторить ввод)
-
-### В. Отмена действия
+### Б. Отмена действия
 
 Ситуация: Пользователь отправляет команду `/cancel` или нажимает кнопку отмены (если она предусмотрена) в любом состоянии.
 
@@ -254,7 +233,7 @@
     *   `->` `Message.answer` ("Действие отменено", клавиатура меню)
 3.  `->` **User** (возвращается в главное меню)
 
-### Г. Смена языка в настройках (обновление клавиатуры)
+### В. Смена языка в настройках (обновление клавиатуры)
 
 Ситуация: Зарегистрированный пользователь меняет язык через ⚙️ Настройки → Язык.
 
