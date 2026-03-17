@@ -215,12 +215,33 @@ async def process_order_confirm(
 
     if result:
         order_id = result.get("order_id", "—")
-        await callback.message.edit_text(
-            lexicon.order_created.format(order_id=order_id)
-        )
+
+        # Инициируем платёж и показываем кнопку оплаты
+        payment_result = await order_service.initiate_payment(order_id)
+        if payment_result and payment_result.get("payment_url"):
+            payment_url = payment_result["payment_url"]
+            pay_keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text=lexicon.pay_button,
+                            url=payment_url,
+                        )
+                    ]
+                ]
+            )
+            await callback.message.edit_text(
+                lexicon.order_created_pay.format(order_id=order_id),
+                reply_markup=pay_keyboard,
+            )
+        else:
+            await callback.message.edit_text(
+                lexicon.order_created.format(order_id=order_id)
+            )
+
         # Обновляем reply-клавиатуру
         await callback.message.answer(
-            lexicon.order_created.format(order_id=order_id),
+            lexicon.order_pay_hint,
             reply_markup=get_main_kb(lexicon, is_registered=True),
         )
     else:

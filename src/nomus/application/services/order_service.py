@@ -130,6 +130,45 @@ class OrderService:
                 }
             return None
 
+    # ─── Payment ──────────────────────────────────────────────────────
+
+    async def initiate_payment(self, order_id: int) -> Optional[dict[str, Any]]:
+        """
+        Инициирует платёж для заказа через API.
+
+        Args:
+            order_id: ID заказа на сервере NMservices
+
+        Returns:
+            {"status": "ok", "payment_id": ..., "payment_url": ...}
+            или None при ошибке
+        """
+        if self.api_client:
+            try:
+                response = await self.api_client.post(
+                    "/payment/initiate",
+                    {"order_id": order_id},
+                )
+                if response.get("status") == "ok":
+                    log.info(
+                        "Payment initiated: payment_id=%s, url=%s",
+                        response.get("payment_id"),
+                        response.get("payment_url"),
+                    )
+                    return response
+                log.warning("Unexpected response from /payment/initiate: %s", response)
+                return None
+            except Exception as e:
+                log.error("Failed to initiate payment via API: %s", e)
+                return None
+        else:
+            # Stub-режим: возвращаем фиктивный URL
+            return {
+                "status": "ok",
+                "payment_id": 999,
+                "payment_url": "https://example.com/demo-payment",
+            }
+
     # ─── Active orders ───────────────────────────────────────────────
 
     async def get_active_orders(
