@@ -81,17 +81,16 @@
 3.  `->` **registration.start_registration** (Handler в `presentation.bot.handlers.registration.py`)
     *   `->` `Message.answer` (Запрос геолокации, клавиатура `request_location=True`)
     *   `->` `FSMContext.set_state(RegistrationStates.waiting_for_location)`
-3.  `->` **User** (отправляет локацию)
-
-4.  **Router** (ловит `F.location` в состоянии `waiting_for_location`)
-5.  `->` **registration.process_location** (Handler)
+4.  `->` **User** (отправляет локацию)
+5.  **Router** (ловит `F.location` в состоянии `waiting_for_location`)
+6.  `->` **registration.process_location** (Handler)
     *   `->` `FSMContext.update_data` (Временное сохранение координат latitude, longitude)
     *   `->` `Message.answer` (Запрос контакта, клавиатура `request_contact=True`)
     *   `->` `FSMContext.set_state(RegistrationStates.waiting_for_phone)`
-6.  `->` **User** (отправляет контакт)
+7.  `->` **User** (отправляет контакт)
 
-7.  **Router** (ловит `F.contact` в состоянии `waiting_for_phone`)
-8.  `->` **registration.process_phone** (Handler)
+8.  **Router** (ловит `F.contact` в состоянии `waiting_for_phone`)
+9.  `->` **registration.process_phone** (Handler)
     *   `->` **AuthService.register_user** (Application Service)
         *   `->` **SmsServiceRemote.send_sms** (Infrastructure)
             *   `->` **POST /users/register** (Remote API) — Регистрация пользователя на сервере
