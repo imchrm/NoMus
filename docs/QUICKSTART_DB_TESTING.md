@@ -21,7 +21,7 @@ The `.env.example` file has been updated with the correct configuration for remo
 ```bash
 ENV=development-remote
 REMOTE_API_BASE_URL=http://192.168.1.191:8000
-REMOTE_API_KEY=troxivasine23
+REMOTE_API_KEY=**********
 ```
 
 **Note**: The `DB_*` variables (DB_HOST, DB_USER, DB_PASSWORD) are **not required** for `development-remote` mode, as it uses in-memory storage. You can leave them as-is for future PostgreSQL migration.
@@ -123,7 +123,7 @@ The bot will:
 
 **Solution**:
 1. Verify API key in `.env` matches NMservices configuration
-2. Current key should be: `troxivasine23`
+2. Current key should be: `**********`
 
 ---
 
@@ -134,7 +134,7 @@ The bot will:
 ENV=development-remote              # Environment selection
 BOT_TOKEN=<your_telegram_bot_token> # From @BotFather
 REMOTE_API_BASE_URL=http://192.168.1.191:8000
-REMOTE_API_KEY=troxivasine23
+REMOTE_API_KEY=**********
 ```
 
 ### config/environments/development-remote.yaml

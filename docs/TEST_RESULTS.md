@@ -20,7 +20,7 @@ The NoMus bot successfully connects to and interacts with the NMservices backend
 ```bash
 ENV=development-remote
 REMOTE_API_BASE_URL=http://192.168.1.191:8000
-REMOTE_API_KEY=troxivasine23
+REMOTE_API_KEY=**********
 ```
 
 ### YAML Configuration
@@ -158,7 +158,7 @@ REMOTE_API_KEY=troxivasine23
 # Ensure .env is configured with:
 # ENV=development-remote
 # REMOTE_API_BASE_URL=http://192.168.1.191:8000
-# REMOTE_API_KEY=troxivasine23
+# REMOTE_API_KEY=**********
 
 poetry run python tests/manual/test_api_connection.py
 ```

@@ -46,3 +46,24 @@ class EmojiPrefixEquals(BaseFilter):
             return True
 
         return False
+    
+    async def _call_2(self, message: Message, lexicon: Messages) -> bool:
+        
+        is_match = False
+        if not message.text:
+            is_match = False
+
+        expected = getattr(lexicon, self.field_name, None)
+        if expected is None:
+            is_match = False
+
+        # Exact match (button press)
+        if message.text == expected:
+            is_match = True
+
+        # Fallback: strip emoji prefix from expected and compare
+        stripped = _EMOJI_PREFIX_RE.sub("", expected)
+        if stripped and message.text == stripped:
+            is_match = True
+
+        return is_match
